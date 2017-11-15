@@ -1,0 +1,27 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27004.2009
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SolaFide", "SolaFide\SolaFide.csproj", "{CA725112-2DB8-4810-9EDE-091EE77D1F6B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CA725112-2DB8-4810-9EDE-091EE77D1F6B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CA725112-2DB8-4810-9EDE-091EE77D1F6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CA725112-2DB8-4810-9EDE-091EE77D1F6B}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{CA725112-2DB8-4810-9EDE-091EE77D1F6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CA725112-2DB8-4810-9EDE-091EE77D1F6B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CA725112-2DB8-4810-9EDE-091EE77D1F6B}.Release|Any CPU.Deploy.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7A5CF606-79B8-4F1A-B5CC-FCA824C38316}
+	EndGlobalSection
+EndGlobal
