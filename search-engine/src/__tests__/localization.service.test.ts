@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { LOCALE_STORAGE_KEY, normalizeLocale, resolveLocale } from "@search/app/services/localization";
+import { COPY, LOCALE_STORAGE_KEY, normalizeLocale, resolveLocale } from "@search/app/services/localization";
 
 describe("localization service", () => {
   beforeEach(() => {
@@ -24,5 +24,11 @@ describe("localization service", () => {
     vi.spyOn(window.navigator, "languages", "get").mockReturnValue(["fr-FR"]);
 
     expect(resolveLocale()).toBe("fr");
+  });
+
+  it("keeps key French labels localized", () => {
+    expect(COPY.fr.title).toBe("Assistant biblique");
+    expect(COPY.fr.entityChips).toBe("Entites");
+    expect(COPY.fr.relationSnippets).toBe("Extraits de relations");
   });
 });
