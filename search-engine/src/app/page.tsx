@@ -342,16 +342,17 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#fef3c7,#fff7ed_35%,#f8fafc)] px-3 py-6 text-stone-900 sm:px-6">
-      <div className="mx-auto grid w-full max-w-6xl gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="rounded-2xl border border-stone-200 bg-white/90 p-4 shadow-sm sm:p-6">
-          <header className="mb-4 border-b border-stone-200 pb-3">
+      <div className="mx-auto grid w-full max-w-6xl items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="flex h-[calc(100vh-3rem)] min-h-[540px] flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white/90 p-4 shadow-sm sm:p-6">
+          <header className="mb-4 shrink-0 border-b border-stone-200 pb-3">
             <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Bible Chat Scholar</h1>
             <p className="mt-1 text-sm text-stone-600">
               Reponse en streaming avec citations bibliques interactives.
             </p>
           </header>
 
-          <div className="space-y-3">
+          <div className="flex-1 overflow-y-auto pr-1">
+            <div className="space-y-3">
             {cooldownSeconds > 0 ? (
               <motion.div
                 initial={{ opacity: 0, y: -8 }}
@@ -414,9 +415,10 @@ export default function Home() {
                 {error.message}
               </p>
             ) : null}
+            </div>
           </div>
 
-          <form className="mt-5 flex flex-col gap-2 border-t border-stone-200 pt-4 sm:flex-row" onSubmit={onSubmit}>
+          <form className="mt-4 shrink-0 flex flex-col gap-2 border-t border-stone-200 pt-4 sm:flex-row" onSubmit={onSubmit}>
             <input
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
@@ -433,7 +435,7 @@ export default function Home() {
           </form>
         </section>
 
-        <aside className="rounded-2xl border border-stone-200 bg-white/90 p-4 shadow-sm sm:p-5">
+        <aside className="rounded-2xl border border-stone-200 bg-white/90 p-4 shadow-sm sm:p-5 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-600">Apercu source</h2>
           {!selectedCitation ? (
             <p className="mt-3 text-sm text-stone-500">
@@ -479,54 +481,55 @@ export default function Home() {
 
           <div className="mt-4 border-t border-stone-200 pt-4">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-stone-600">Graphe de connaissances</h3>
-
-            {graphLoading ? (
-              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
-                <div className="h-3 w-24 animate-pulse rounded bg-amber-200" />
-                <div className="mt-2 h-3 w-full animate-pulse rounded bg-amber-100" />
-                <div className="mt-2 h-3 w-5/6 animate-pulse rounded bg-amber-100" />
-              </div>
-            ) : null}
-
-            {graphError ? (
-              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2 text-sm text-red-700">
-                {graphError}
-              </p>
-            ) : null}
-
-            {!graphLoading && !graphError && entityFacts.length === 0 ? (
-              <p className="mt-3 text-sm text-stone-500">Aucune entite suggeree pour le moment.</p>
-            ) : null}
-
-            {entityFacts.length > 0 ? (
-              <div className="mt-3">
-                <p className="text-xs uppercase tracking-wide text-stone-500">Entity Chips</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {entityFacts.map((entity) => (
-                    <button
-                      key={entity.slug}
-                      type="button"
-                      disabled={!canSubmit}
-                      onClick={() => onEntityChipClick(entity.name)}
-                      className="rounded-full border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {entity.name}
-                    </button>
-                  ))}
+            <div className="mt-3 lg:max-h-[42vh] lg:overflow-y-auto lg:pr-1">
+              {graphLoading ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <div className="h-3 w-24 animate-pulse rounded bg-amber-200" />
+                  <div className="mt-2 h-3 w-full animate-pulse rounded bg-amber-100" />
+                  <div className="mt-2 h-3 w-5/6 animate-pulse rounded bg-amber-100" />
                 </div>
-              </div>
-            ) : null}
+              ) : null}
 
-            {relationSnippets.length > 0 ? (
-              <div className="mt-3 rounded-xl border border-stone-200 bg-stone-50 p-3">
-                <p className="text-xs uppercase tracking-wide text-stone-500">Relation Snippets</p>
-                <ul className="mt-2 space-y-1.5 text-sm text-stone-700">
-                  {relationSnippets.map((snippet) => (
-                    <li key={snippet}>{snippet}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
+              {graphError ? (
+                <p className="rounded-lg border border-red-200 bg-red-50 p-2 text-sm text-red-700">
+                  {graphError}
+                </p>
+              ) : null}
+
+              {!graphLoading && !graphError && entityFacts.length === 0 ? (
+                <p className="text-sm text-stone-500">Aucune entite suggeree pour le moment.</p>
+              ) : null}
+
+              {entityFacts.length > 0 ? (
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-stone-500">Entity Chips</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {entityFacts.map((entity) => (
+                      <button
+                        key={entity.slug}
+                        type="button"
+                        disabled={!canSubmit}
+                        onClick={() => onEntityChipClick(entity.name)}
+                        className="rounded-full border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {entity.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {relationSnippets.length > 0 ? (
+                <div className="mt-3 rounded-xl border border-stone-200 bg-stone-50 p-3">
+                  <p className="text-xs uppercase tracking-wide text-stone-500">Relation Snippets</p>
+                  <ul className="mt-2 space-y-1.5 text-sm text-stone-700">
+                    {relationSnippets.map((snippet) => (
+                      <li key={snippet}>{snippet}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
           </div>
         </aside>
       </div>
