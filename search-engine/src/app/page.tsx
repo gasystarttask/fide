@@ -110,7 +110,7 @@ function renderMessageWithCitations(
             <button
               type="button"
               onClick={() => onCitationClick(reference)}
-              className="rounded-md border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-800 hover:bg-amber-100"
+              className="rounded-md border border-indigo-300 bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-800 hover:bg-indigo-100"
             >
               {reference}
             </button>
@@ -341,9 +341,9 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#fef3c7,#fff7ed_35%,#f8fafc)] px-3 py-6 text-stone-900 sm:px-6">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#bdc7f5,#edeeff_35%,#f8fafc)] px-3 py-6 text-stone-900 sm:px-6">
       <div className="mx-auto grid w-full max-w-6xl items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="flex h-[calc(100vh-3rem)] min-h-[540px] flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white/90 p-4 shadow-sm sm:p-6">
+        <section className="flex h-[calc(100vh-3rem)] min-h-135 flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white/90 p-4 shadow-sm sm:p-6">
           <header className="mb-4 shrink-0 border-b border-stone-200 pb-3">
             <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Bible Chat Scholar</h1>
             <p className="mt-1 text-sm text-stone-600">
@@ -370,7 +370,7 @@ export default function Home() {
               {messages.map((message) => {
                 const isAssistant = message.role === "assistant";
                 const bubbleClass = isAssistant
-                  ? "border-amber-200 bg-amber-50"
+                  ? "border-indigo-200 bg-indigo-50"
                   : "border-stone-300 bg-stone-100";
                 const text = getMessageText(message);
 
@@ -398,11 +398,11 @@ export default function Home() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="rounded-xl border border-amber-200 bg-amber-50 p-3"
+                className="rounded-xl border border-indigo-200 bg-indigo-50 p-3"
               >
-                <p className="text-sm font-medium text-amber-900">Recherche du contexte biblique...</p>
-                <div className="mt-2 h-3 w-3/4 animate-pulse rounded bg-amber-200" />
-                <div className="mt-2 h-3 w-5/6 animate-pulse rounded bg-amber-100" />
+                <p className="text-sm font-medium text-indigo-900">Recherche du contexte biblique...</p>
+                <div className="mt-2 h-3 w-3/4 animate-pulse rounded bg-indigo-200" />
+                <div className="mt-2 h-3 w-5/6 animate-pulse rounded bg-indigo-100" />
               </motion.div>
             ) : null}
 
@@ -423,7 +423,7 @@ export default function Home() {
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               placeholder="Posez une question biblique (ex: Qui est Jesus ?)"
-              className="min-w-0 flex-1 rounded-lg border border-stone-300 px-3 py-2 outline-none ring-amber-400 focus:ring"
+              className="min-w-0 flex-1 rounded-lg border border-stone-300 px-3 py-2 outline-none ring-indigo-400 focus:ring"
             />
             <button
               type="submit"
@@ -451,10 +451,10 @@ export default function Home() {
           ) : null}
 
           {previewLoading ? (
-            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
-              <div className="h-3 w-20 animate-pulse rounded bg-amber-200" />
-              <div className="mt-2 h-3 w-full animate-pulse rounded bg-amber-100" />
-              <div className="mt-2 h-3 w-5/6 animate-pulse rounded bg-amber-100" />
+            <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50 p-3">
+              <div className="h-3 w-20 animate-pulse rounded bg-indigo-200" />
+              <div className="mt-2 h-3 w-full animate-pulse rounded bg-indigo-100" />
+              <div className="mt-2 h-3 w-5/6 animate-pulse rounded bg-indigo-100" />
             </div>
           ) : null}
 
@@ -483,10 +483,10 @@ export default function Home() {
             <h3 className="text-sm font-semibold uppercase tracking-wide text-stone-600">Graphe de connaissances</h3>
             <div className="mt-3 lg:max-h-[42vh] lg:overflow-y-auto lg:pr-1">
               {graphLoading ? (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                  <div className="h-3 w-24 animate-pulse rounded bg-amber-200" />
-                  <div className="mt-2 h-3 w-full animate-pulse rounded bg-amber-100" />
-                  <div className="mt-2 h-3 w-5/6 animate-pulse rounded bg-amber-100" />
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-3">
+                  <div className="h-3 w-24 animate-pulse rounded bg-indigo-200" />
+                  <div className="mt-2 h-3 w-full animate-pulse rounded bg-indigo-100" />
+                  <div className="mt-2 h-3 w-5/6 animate-pulse rounded bg-indigo-100" />
                 </div>
               ) : null}
 
