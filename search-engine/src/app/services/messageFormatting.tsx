@@ -2,7 +2,7 @@ import { Fragment } from "react";
 import type { ReactNode } from "react";
 import type { ChatPart, RenderMessageWithCitations } from "../types/ui";
 
-const CITATION_REGEX = /(\[([^\]]+\d+:\d+(?:-\d+)?)\]|\(([^\)]+\d+:\d+(?:-\d+)?)\)|\*\*([^\*]+\d+:\d+(?:-\d+)?)\*\*)/g;
+const TOKEN_REGEX = /(\[([^\]]+\d+:\d+(?:-\d+)?)\]|\(([^\)]+\d+:\d+(?:-\d+)?)\)|\*\*([^\*]+)\*\*)/g;
 
 function splitCitationReferences(citation: string): string[] {
   const refs = citation
@@ -33,10 +33,12 @@ export const renderMessageWithCitations: RenderMessageWithCitations = (
   let lastIndex = 0;
   let index = 0;
 
-  for (const match of text.matchAll(CITATION_REGEX)) {
+  for (const match of text.matchAll(TOKEN_REGEX)) {
     const full = match[1];
-    const captured = (match[2] ?? match[3] ?? match[4] ?? "").trim();
-    if (!full || !captured || match.index == null) continue;
+    const citation = (match[2] ?? match[3] ?? "").trim();
+    const boldText = match[4] ?? "";
+
+    if (!full || match.index == null) continue;
 
     const start = match.index;
     if (start > lastIndex) {
@@ -44,10 +46,27 @@ export const renderMessageWithCitations: RenderMessageWithCitations = (
       index += 1;
     }
 
-    const references = splitCitationReferences(captured);
+    if (boldText.length > 0) {
+      nodes.push(
+        <strong key={`bold-${index}`} className="font-semibold">
+          {boldText}
+        </strong>
+      );
+
+      index += 1;
+      lastIndex = start + full.length;
+      continue;
+    }
+
+    if (!citation) {
+      lastIndex = start + full.length;
+      continue;
+    }
+
+    const references = splitCitationReferences(citation);
 
     nodes.push(
-      <Fragment key={`cite-group-${captured}-${index}`}>
+      <Fragment key={`cite-group-${citation}-${index}`}>
         {references.map((reference, refIndex) => (
           <Fragment key={`cite-item-${reference}-${refIndex}`}>
             {refIndex > 0 ? "; " : null}

@@ -31,4 +31,20 @@ describe("message formatting service", () => {
     expect(onCitationClick).toHaveBeenNthCalledWith(2, "Romans 8:28");
     expect(onCitationClick).toHaveBeenNthCalledWith(3, "Genesis 1:1");
   });
+
+  it("renders text wrapped in double-stars as bold", () => {
+    render(<div>{renderMessageWithCitations("This is **important** text.", vi.fn())}</div>);
+
+    expect(screen.getByText("important")).toBeInTheDocument();
+    expect(screen.getByText("important").tagName).toBe("STRONG");
+  });
+
+  it("renders mixed bold markdown and clickable citations", () => {
+    const onCitationClick = vi.fn();
+    render(<div>{renderMessageWithCitations("**Important** [John 3:16]", onCitationClick)}</div>);
+
+    expect(screen.getByText("Important").tagName).toBe("STRONG");
+    fireEvent.click(screen.getByRole("button", { name: "John 3:16" }));
+    expect(onCitationClick).toHaveBeenCalledWith("John 3:16");
+  });
 });
