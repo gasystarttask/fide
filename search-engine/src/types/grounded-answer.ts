@@ -11,6 +11,7 @@ export interface GroundedAnswerRequest {
   k?: number;
   vectorWeight?: number;
   graphWeight?: number;
+  bm25Weight?: number;
   filters?: HybridFilters;
   minScore?: number;
 }

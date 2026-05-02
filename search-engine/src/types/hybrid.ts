@@ -60,6 +60,8 @@ export interface HybridSearchResponse {
       latencyMs: number;
       filters?: HybridFilters;
       k: number;
+      bm25Weight?: number;
+      bm25Disabled?: boolean;
     };
   };
 }
