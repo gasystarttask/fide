@@ -24,11 +24,11 @@ describe("ChatMessageList integration", () => {
       />
     );
 
-    expect(screen.getByText(COPY.en.rateLimitTitle)).toBeTruthy();
-    expect(screen.getByText(COPY.en.retrievingContext)).toBeTruthy();
-    expect(screen.getByText(COPY.en.assistantStreaming)).toBeTruthy();
-    expect(screen.getByText(COPY.en.roleUser)).toBeTruthy();
-    expect(screen.getByText(COPY.en.roleAssistant)).toBeTruthy();
+    expect(screen.getByText(COPY.en.rateLimitTitle)).toBeInTheDocument();
+    expect(screen.getByText(COPY.en.retrievingContext)).toBeInTheDocument();
+    expect(screen.getByText(COPY.en.assistantStreaming)).toBeInTheDocument();
+    expect(screen.getByText(COPY.en.roleUser)).toBeInTheDocument();
+    expect(screen.getByText(COPY.en.roleAssistant)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "John 3:16" }));
     expect(onCitationClick).toHaveBeenCalledWith("John 3:16");

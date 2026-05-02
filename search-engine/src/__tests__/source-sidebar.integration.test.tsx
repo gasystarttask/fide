@@ -34,11 +34,11 @@ describe("SourceSidebar integration", () => {
       />
     );
 
-    expect(screen.getByText(COPY.en.sourcePreviewTitle)).toBeTruthy();
+    expect(screen.getByText(COPY.en.sourcePreviewTitle)).toBeInTheDocument();
     expect(screen.getAllByText("John 3:16")).toHaveLength(2);
-    expect(screen.getByText(/For God so loved the world/)).toBeTruthy();
-    expect(screen.getByText(`${COPY.en.versionLabel}: LSG`)).toBeTruthy();
-    expect(screen.getByText(COPY.en.graphTitle)).toBeTruthy();
+    expect(screen.getByText(/For God so loved the world/)).toBeInTheDocument();
+    expect(screen.getByText(`${COPY.en.versionLabel}: LSG`)).toBeInTheDocument();
+    expect(screen.getByText(COPY.en.graphTitle)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Abraham" }));
     expect(onEntityChipClick).toHaveBeenCalledWith("Abraham");
@@ -61,7 +61,7 @@ describe("SourceSidebar integration", () => {
       />
     );
 
-    expect(screen.getByText(COPY.en.sourcePreviewHint)).toBeTruthy();
-    expect(screen.getByText(COPY.en.noEntities)).toBeTruthy();
+    expect(screen.getByText(COPY.en.sourcePreviewHint)).toBeInTheDocument();
+    expect(screen.getByText(COPY.en.noEntities)).toBeInTheDocument();
   });
 });
