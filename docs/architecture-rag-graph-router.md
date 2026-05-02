@@ -2,10 +2,10 @@
 
 ## System Overview
 
-The Bible Search Engine combines three interacting systems to deliver accurate, contextualized biblical answers:
+The Bible Search Engine combines four interacting systems to deliver accurate, contextualized biblical answers:
 
 1. **Query Router (US-009)**: Intent classification + adaptive parameter tuning
-2. **Hybrid Retriever**: Vector + Graph search with adaptive fanout
+2. **Hybrid Retriever**: Vector + Graph + BM25 search with adaptive fanout
 3. **Context Injection & Grounded Answer (US-010)**: LLM-based answer generation with citation enforcement
 4. **Streaming API (US-011)**: Real-time token streaming to frontend
 
@@ -24,11 +24,11 @@ graph TD
     B2 -->|resolve context| C
     
     C -->|heuristic + LLM| D["Intent Classification"]
-    D -->|THEOLOGY| E["Weight Profile:<br/>vw=0.9, gw=0.1, k=5"]
-    D -->|GENEALOGY| F["Weight Profile:<br/>vw=0.1, gw=0.9, k=6<br/>Fast: vw=0.8, gw=0.2"]
-    D -->|GEOGRAPHY| G["Weight Profile:<br/>vw=0.5, gw=0.5, k=8"]
-    D -->|CHRONOLOGY| H["Weight Profile:<br/>vw=0.4, gw=0.6, k=8"]
-    D -->|GENERAL| I["Weight Profile:<br/>vw=0.8, gw=0.2, k=5"]
+    D -->|THEOLOGY| E["Weight Profile:<br/>vw=0.63, gw=0.07, bw=0.3, k=5"]
+    D -->|GENEALOGY| F["Weight Profile:<br/>vw=0.15, gw=0.7, bw=0.15, k=6<br/>Fast: vw=0.68, gw=0.17, bw=0.15"]
+    D -->|GEOGRAPHY| G["Weight Profile:<br/>vw=0.3, gw=0.3, bw=0.4, k=8"]
+    D -->|CHRONOLOGY| H["Weight Profile:<br/>vw=0.35, gw=0.4, bw=0.25, k=8"]
+    D -->|GENERAL| I["Weight Profile:<br/>vw=0.48, gw=0.12, bw=0.4, k=5"]
     
     E --> J["Hybrid Retriever"]
     F --> J
@@ -47,9 +47,11 @@ graph TD
     N --> P
     O --> P
     O --> Q
+    O --> Q2["BM25 Search (Meilisearch)"]
     
-    P --> R["Reciprocal Rank<br/>Fusion"]
+    P --> R["Reciprocal Rank<br/>Fusion (RRF-3)"]
     Q --> R
+    Q2 --> R
     
     R -->|top k verses| S["Entity Fact<br/>Augmentation"]
     S -->|genealogy query?| T["Lexical Rerank<br/>by Query Overlap"]
@@ -115,7 +117,7 @@ Output: { intent, vectorWeight, graphWeight, k, filters }
 
 **File**: `src/lib/hybrid-retriever.ts`
 
-**Purpose**: Dual-path search combining semantic (vector) and structural (graph) retrieval
+**Purpose**: Three-path search combining semantic (vector), structural (graph), and lexical (BM25) retrieval
 
 **Vector Path** (`vectorSearch`):
 - Generate/cache query embedding via OpenAI
@@ -129,6 +131,12 @@ Output: { intent, vectorWeight, graphWeight, k, filters }
 - Apply book/testament filters
 - Fallback regex if no primary hits
 - Return top k results with `source: "graph"`
+
+**BM25 Path** (`bm25Search`):
+- Queries `verses_bm25` in Meilisearch
+- Applies optional filters (`book`, normalized `testament`)
+- Returns ranked lexical matches with `source: "bm25"`
+- Uses graceful degradation and circuit breaker fallback when Meilisearch is unavailable
 
 **Adaptive Fanout** (New):
 ```
@@ -239,6 +247,14 @@ Result: TTFT (Time To First Token) < 1.5s after retrieval completes; no monolith
 ---
 
 ## Performance Characteristics
+
+### RRF-3 Formula
+
+$$
+score(d) = w_v \cdot \frac{1}{k + rank_v(d)} + w_g \cdot \frac{1}{k + rank_g(d)} + w_b \cdot \frac{1}{k + rank_b(d)}
+$$
+
+Where $w_v + w_g + w_b = 1$ and missing ranks contribute 0.
 
 ### Latency Breakdown
 

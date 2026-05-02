@@ -5,7 +5,8 @@
 
 - vector search (semantic similarity with OpenAI embeddings + MongoDB vector index),
 - graph search (entity-driven retrieval with `entity_slugs`),
-- rank fusion (RRF) to merge both result sets.
+- BM25 full-text search (Meilisearch),
+- rank fusion (RRF-3) to merge all result sets.
 
 It returns:
 - ranked verses,
@@ -18,17 +19,21 @@ It returns:
 
 1. Build a cache key from query + parameters.
 2. Return cached payload if available (`retrieveCache`).
-3. Apply **adaptive fanout**:
+3. Normalize `vectorWeight`, `graphWeight`, and `bm25Weight` to sum to 1.0.
+4. Apply **adaptive fanout**:
    - If `vectorWeight <= 0.1`: skip vector search entirely (resolve to empty).
-   - If `graphWeight <= 0.25`: skip graph search entirely (resolve to empty).
+   - If `graphWeight <= 0.1`: skip graph search entirely (resolve to empty).
+   - If `bm25Weight <= 0.05`: skip BM25 search entirely (resolve to empty).
    - Otherwise: use fanout multiplier based on intent:
      - `vectorSearchK = (vectorWeight <= 0.15) ? max(4, k) : k * 2`
-     - `graphSearchK = (graphWeight >= 0.8) ? max(k + 2, 8) : k * 2`
-4. Run in parallel (both or single-sided):
+     - `graphSearchK = (graphWeight >= 0.7) ? max(k + 2, 8) : k * 2`
+     - `bm25SearchK = (bm25Weight >= 0.35) ? max(k + 3, 10) : k * 2`
+5. Run in parallel (all active retrievers):
    - `vectorSearch(query, vectorSearchK, filters)`
    - `graphSearch(query, graphSearchK, filters)`
-5. Merge both lists using `reciprocalRankFusion(...)`.
-6. Keep top `k` verses above `minScore`.
+   - `bm25Search(query, bm25SearchK, filters)`
+6. Merge all lists using `reciprocalRankFusion(...)`.
+7. Keep top `k` verses above `minScore`.
 7. Resolve entity slugs:
    - first from `verse.entitySlugs`,
    - fallback to `extractMentionedEntities(...)` if missing.
@@ -53,11 +58,25 @@ It returns:
 - Uses limited regex fallback only if no primary hits.
 - Returns `RankedVerseResult[]` with source `"graph"`.
 
-### 3) Fusion: `reciprocalRankFusion`
-- Combines vector + graph rankings with configurable weights:
+### 3) `bm25Search`
+- Uses Meilisearch `verses_bm25` index.
+- Converts testament filters to `Old/New` values.
+- Adds circuit breaker fallback:
+   - after 3 consecutive errors, BM25 is disabled for 5 minutes.
+   - `SKIP_MEILISEARCH=true` disables BM25 immediately.
+
+### 4) Fusion: `reciprocalRankFusion`
+- Combines vector + graph + BM25 rankings with configurable weights:
   - `vectorWeight`
   - `graphWeight`
+   - `bm25Weight`
 - Produces final hybrid score and source `"hybrid"`.
+
+RRF-3 formula:
+
+$$
+score(d) = w_v \cdot \frac{1}{k + rank_v(d)} + w_g \cdot \frac{1}{k + rank_g(d)} + w_b \cdot \frac{1}{k + rank_b(d)}
+$$
 
 ---
 
@@ -110,13 +129,13 @@ Both caches are in-memory TTL maps with max-size eviction.
 
 ## Weight presets (from Query Router)
 
-| Intent | Vector | Graph | k | Use Case |
-|--------|--------|-------|---|----------|
-| **THEOLOGY** | 0.9 | 0.1 | 5 | Thematic: "What does Bible say about faith?" |
-| **GENEALOGY** | 0.1 | 0.9 | 6 | Kinship: "Father of Jacob?" → *fast profile: 0.8/0.2 after routing* |
-| **GEOGRAPHY** | 0.5 | 0.5 | 8 | Places: "Abraham in Egypt?" |
-| **CHRONOLOGY** | 0.4 | 0.6 | 8 | Timeline: "What happened after X?" |
-| **GENERAL** | 0.8 | 0.2 | 5 | Fallback (vector-only with graph skip) |
+| Intent | Vector | Graph | BM25 | k | Use Case |
+|--------|--------|-------|------|---|----------|
+| **THEOLOGY** | 0.63 | 0.07 | 0.30 | 5 | Thematic: "What does Bible say about faith?" |
+| **GENEALOGY** | 0.15 | 0.70 | 0.15 | 6 | Kinship: "Father of Jacob?" |
+| **GEOGRAPHY** | 0.30 | 0.30 | 0.40 | 8 | Places: "Abraham in Egypt?" |
+| **CHRONOLOGY** | 0.35 | 0.40 | 0.25 | 8 | Timeline: "What happened after X?" |
+| **GENERAL** | 0.48 | 0.12 | 0.40 | 5 | General fallback with lexical emphasis |
 
 *Note: Kinship fast profile applied dynamically by router when direct kinship detected.*
 
@@ -131,14 +150,15 @@ Both caches are in-memory TTL maps with max-size eviction.
 ### Solutions
 1. **Kinship fast profile** (from Query Router):
    - Direct kinship patterns detected in `query-router.ts` → `isDirectKinshipQuestion`
-   - Routes genealogy to `vectorWeight: 0.8, graphWeight: 0.2, k: 6` (fast)
-   - Skips graph search via adaptive fanout when `gw <= 0.25`
+   - Routes genealogy to `vectorWeight: 0.68, graphWeight: 0.17, bm25Weight: 0.15, k: 6` (fast)
+   - Keeps BM25 limited while still reducing graph fanout pressure
    - Result: genealogy queries drop from 6.6s → ~2s cold, correct Genesis verses for Joseph query
 
-2. **THEOLOGY weight bump + Christology keywords** (from Query Router US-009 refinement):
+2. **Intent-adaptive BM25 tuning**:
    - Added `"jesus"`, `"jésus"`, `"christ"`, `"messie"` to heuristic intent detection
-   - Adjusted `GENERAL: { vw: 0.8, gw: 0.2 }` (was 0.7/0.3)
-   - Ensures pure-vector queries stay <2s, irrelevant graph results skipped
+   - `GENERAL` and `GEOGRAPHY` boost BM25 to `0.4`
+   - `GENEALOGY` reduces BM25 to `0.15`
+   - `THEOLOGY` uses balanced BM25 at `0.3`
 
 3. **Genealogy lexical boost** (`rerankByQueryOverlap`):
    - If query looks genealogical, re-rank results by token overlap with query

@@ -4,14 +4,15 @@
 [![Security](https://img.shields.io/github/issues-search/gasystarttask/bible-sg?query=is%3Aopen+label%3Asecurity&label=security%20issues)](https://github.com/gasystarttask/bible-sg/issues?q=is%3Aopen+label%3Asecurity)
 [![Code Quality](https://img.shields.io/github/actions/workflow/status/gasystarttask/bible-sg/search-engine-openapi.yml?label=code%20quality)](https://github.com/gasystarttask/bible-sg/actions/workflows/search-engine-openapi.yml)
 
-Bible Chat Scholar is a ~~proof-of-concept~~ Bible AI engine using semantic search (vector embeddings) and a roadmap toward RAG + knowledge graph capabilities.
+Bible Chat Scholar is a ~~proof-of-concept~~ Bible AI engine using hybrid retrieval (vector embeddings + knowledge graph + BM25 full-text) for grounded biblical answers.
 
 ## What it includes
 
 - XML → JSON parsing pipeline
 - Verse embedding/vectorization pipeline
 - Semantic Search API in Next.js
-- Foundation for hybrid retrieval (vector + graph)
+- Hybrid retriever with vector + graph + BM25 fusion
+- Grounded-answer streaming API with citation enforcement
 
 ## Architecture diagram
 
@@ -21,14 +22,17 @@ Bible Chat Scholar is a ~~proof-of-concept~~ Bible AI engine using semantic sear
 
 - Next.js (App Router, TypeScript)
 - DocumentDB / Mongo-compatible vector search
+- Meilisearch (BM25 full-text search)
 - OpenAI embeddings (`text-embedding-3-small`)
 - LangChain
 
 ## Quick start
 
 1. Install dependencies
-2. Configure environment variables (`DATABASE_URL`, `OPENAI_API_KEY`, etc.)
-3. Run app and pipelines as needed
+2. Start local services (`docker compose -f services/compose.yml up -d`)
+3. Configure environment variables (`DATABASE_URL`, `OPENAI_API_KEY`, `MEILISEARCH_URL`, `MEILISEARCH_API_KEY`, etc.)
+4. Index Meilisearch data (`npm run reindex:meilisearch` from `search-engine`)
+5. Run app and pipelines as needed
 
 ## Documentation references
 
