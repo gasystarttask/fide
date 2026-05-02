@@ -33,4 +33,25 @@ describe("query-router French heuristics", () => {
     expect(result.graphWeight).toBe(0.3);
     expect(result.bm25Weight).toBe(0.4);
   });
+
+  it("applies chronology bm25 tuning", async () => {
+    const result = await routeQuery({ query: "Quand David regna-t-il ?" });
+
+    expect(result.intent).toBe("CHRONOLOGY");
+    expect(result.bm25Weight).toBe(0.25);
+  });
+
+  it("applies theology bm25 tuning", async () => {
+    const result = await routeQuery({ query: "Que dit la Bible sur la grace ?" });
+
+    expect(result.intent).toBe("THEOLOGY");
+    expect(result.bm25Weight).toBe(0.3);
+  });
+
+  it("applies general bm25 tuning", async () => {
+    const result = await routeQuery({ query: "Parle-moi d'Abraham" });
+
+    expect(result.intent).toBe("GENERAL");
+    expect(result.bm25Weight).toBe(0.4);
+  });
 });
