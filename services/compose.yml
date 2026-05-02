@@ -12,11 +12,40 @@ services:
     volumes:
       - docdb-data:/docdb-data
       - ./scripts:/init_doc_db.d
+  meilisearch:
+    image: getmeili/meilisearch:v1.13
+    container_name: meilisearch
+    ports:
+      - "7700:7700"
+    environment:
+      - MEILI_ENV=development
+      - MEILI_MASTER_KEY=${MEILISEARCH_API_KEY:-masterKey}
+      - MEILI_NO_ANALYTICS=true
+    volumes:
+      - meilisearch-data:/meili_data
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  meilisearch-init:
+    image: curlimages/curl:8.12.1
+    container_name: meilisearch_init
+    depends_on:
+      meilisearch:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/scripts/init-meilisearch.sh"]
+    environment:
+      - MEILISEARCH_URL=${MEILISEARCH_URL:-http://meilisearch:7700}
+      - MEILISEARCH_API_KEY=${MEILISEARCH_API_KEY:-masterKey}
+    volumes:
+      - ./scripts:/scripts:ro
   bible-chat-scholar:
     image: ghcr.io/gasystarttask/bible-chat-scholar:main
     container_name: bible_chat_scholar
     depends_on:
       - documentdb
+      - meilisearch
     ports:
       - "3000:3000"
     extra_hosts:
@@ -28,5 +57,8 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       GITHUB_TOKEN: ${GITHUB_TOKEN}
       COPILOTE_MODEL: ${COPILOTE_MODEL:-gpt-4o-mini}
+      MEILISEARCH_URL: ${MEILISEARCH_URL:-http://meilisearch:7700}
+      MEILISEARCH_API_KEY: ${MEILISEARCH_API_KEY:-masterKey}
 volumes:
   docdb-data: {}
+  meilisearch-data: {}
