@@ -16,6 +16,7 @@ type RouterDecisionShape = {
   intent: QueryIntent;
   vectorWeight: number;
   graphWeight: number;
+  bm25Weight: number;
   k: number;
   filters?: HybridFilters;
   reasoning: string;
@@ -32,7 +33,8 @@ export interface QueryRouterInput {
     k?: number;
     vectorWeight?: number;
     graphWeight?: number;
-      filters?: HybridFilters;
+    bm25Weight?: number;
+    filters?: HybridFilters;
   };
   timeoutMs?: number;
 }
@@ -116,12 +118,12 @@ const NEW_TESTAMENT_KEYS = new Set([
   "1 John", "2 John", "3 John", "Jude", "Revelation",
 ]);
 
-const INTENT_CONFIG: Record<QueryIntent, Pick<RouterDecisionShape, "vectorWeight" | "graphWeight" | "k">> = {
-  THEOLOGY: { vectorWeight: 0.9, graphWeight: 0.1, k: 5 },
-  GENEALOGY: { vectorWeight: 0.1, graphWeight: 0.9, k: 6 },
-  GEOGRAPHY: { vectorWeight: 0.5, graphWeight: 0.5, k: 8 },
-  CHRONOLOGY: { vectorWeight: 0.4, graphWeight: 0.6, k: 8 },
-  GENERAL: { vectorWeight: 0.8, graphWeight: 0.2, k: 5 },
+const INTENT_CONFIG: Record<QueryIntent, Pick<RouterDecisionShape, "vectorWeight" | "graphWeight" | "bm25Weight" | "k">> = {
+  THEOLOGY: { vectorWeight: 0.63, graphWeight: 0.07, bm25Weight: 0.3, k: 5 },
+  GENEALOGY: { vectorWeight: 0.15, graphWeight: 0.7, bm25Weight: 0.15, k: 6 },
+  GEOGRAPHY: { vectorWeight: 0.3, graphWeight: 0.3, bm25Weight: 0.4, k: 8 },
+  CHRONOLOGY: { vectorWeight: 0.35, graphWeight: 0.4, bm25Weight: 0.25, k: 8 },
+  GENERAL: { vectorWeight: 0.48, graphWeight: 0.12, bm25Weight: 0.4, k: 5 },
 };
 
 const BOOK_ALIASES: Record<string, string[]> = {
@@ -221,17 +223,23 @@ function clampInt(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.round(value)));
 }
 
-function normalizeWeights(vectorWeight: number, graphWeight: number): { vectorWeight: number; graphWeight: number } {
+function normalizeWeights(
+  vectorWeight: number,
+  graphWeight: number,
+  bm25Weight: number
+): { vectorWeight: number; graphWeight: number; bm25Weight: number } {
   const vw = Number.isFinite(vectorWeight) ? Math.max(0, vectorWeight) : 0;
   const gw = Number.isFinite(graphWeight) ? Math.max(0, graphWeight) : 0;
-  const total = vw + gw;
+  const bw = Number.isFinite(bm25Weight) ? Math.max(0, bm25Weight) : 0;
+  const total = vw + gw + bw;
   if (total <= 0) {
-    return { vectorWeight: 0.7, graphWeight: 0.3 };
+    return { vectorWeight: 0.6, graphWeight: 0.1, bm25Weight: 0.3 };
   }
 
   return {
     vectorWeight: Number((vw / total).toFixed(3)),
     graphWeight: Number((gw / total).toFixed(3)),
+    bm25Weight: Number((bw / total).toFixed(3)),
   };
 }
 
@@ -287,7 +295,7 @@ function heuristicRoute(query: string): QueryRoutingDecision {
   const intent = heuristicIntent(query);
   const base =
     intent === "GENEALOGY" && isDirectKinshipQuestion(query)
-      ? { vectorWeight: 0.8, graphWeight: 0.2, k: 6 }
+      ? { vectorWeight: 0.68, graphWeight: 0.17, bm25Weight: 0.15, k: 6 }
       : INTENT_CONFIG[intent];
   const book = extractBookFromQuery(query);
   const filters = book ? { book, testament: detectTestament(book) } : undefined;
@@ -296,6 +304,7 @@ function heuristicRoute(query: string): QueryRoutingDecision {
     intent,
     vectorWeight: base.vectorWeight,
     graphWeight: base.graphWeight,
+    bm25Weight: base.bm25Weight,
     k: base.k,
     filters,
     reasoning: `Heuristic route selected intent ${intent} from query keywords.`,
@@ -325,7 +334,7 @@ async function llmRoute(query: string, timeoutMs: number): Promise<QueryRoutingD
           {
             role: "system",
             content:
-              "You are a multilingual (English/French) query router for Bible retrieval. Return only JSON with this schema: { intent, vectorWeight, graphWeight, k, filters: { testament?, book? }, reasoning }. intent must be one of THEOLOGY, GENEALOGY, GEOGRAPHY, CHRONOLOGY, GENERAL. Canonicalize book names to LSG French names (e.g., Genese -> Genèse, Matthew -> Matthieu). Prefer French testament labels (Ancien Testament / Nouveau Testament). Ensure vectorWeight + graphWeight ~= 1. Keep reasoning under 160 chars.",
+              "You are a multilingual (English/French) query router for Bible retrieval. Return only JSON with this schema: { intent, vectorWeight, graphWeight, bm25Weight, k, filters: { testament?, book? }, reasoning }. intent must be one of THEOLOGY, GENEALOGY, GEOGRAPHY, CHRONOLOGY, GENERAL. Canonicalize book names to LSG French names (e.g., Genese -> Genèse, Matthew -> Matthieu). Prefer French testament labels (Ancien Testament / Nouveau Testament). Ensure vectorWeight + graphWeight + bm25Weight ~= 1. Keep reasoning under 160 chars.",
           },
           {
             role: "user",
@@ -348,7 +357,8 @@ async function llmRoute(query: string, timeoutMs: number): Promise<QueryRoutingD
 
     const normalized = normalizeWeights(
       parsed.vectorWeight ?? INTENT_CONFIG[parsed.intent].vectorWeight,
-      parsed.graphWeight ?? INTENT_CONFIG[parsed.intent].graphWeight
+      parsed.graphWeight ?? INTENT_CONFIG[parsed.intent].graphWeight,
+      parsed.bm25Weight ?? INTENT_CONFIG[parsed.intent].bm25Weight
     );
 
     const book = toLsgBookName(parsed.filters?.book ?? extractBookFromQuery(query));
@@ -364,6 +374,7 @@ async function llmRoute(query: string, timeoutMs: number): Promise<QueryRoutingD
       intent: parsed.intent,
       vectorWeight: normalized.vectorWeight,
       graphWeight: normalized.graphWeight,
+      bm25Weight: normalized.bm25Weight,
       k: clampInt(parsed.k ?? INTENT_CONFIG[parsed.intent].k, 1, 20),
       filters,
       reasoning: parsed.reasoning?.trim() || `LLM classified query as ${parsed.intent}.`,
@@ -391,15 +402,17 @@ export async function routeQuery(input: QueryRouterInput): Promise<QueryRoutingD
 
   const mergedWeights = normalizeWeights(
     input.requested?.vectorWeight ?? routed.vectorWeight,
-    input.requested?.graphWeight ?? routed.graphWeight
+    input.requested?.graphWeight ?? routed.graphWeight,
+    input.requested?.bm25Weight ?? routed.bm25Weight
   );
 
   const applyKinshipFastProfile = routed.intent === "GENEALOGY" && isDirectKinshipQuestion(query);
   const finalWeights =
     applyKinshipFastProfile &&
     input.requested?.vectorWeight == null &&
-    input.requested?.graphWeight == null
-      ? { vectorWeight: 0.8, graphWeight: 0.2 }
+    input.requested?.graphWeight == null &&
+    input.requested?.bm25Weight == null
+      ? { vectorWeight: 0.68, graphWeight: 0.17, bm25Weight: 0.15 }
       : mergedWeights;
 
   return {
@@ -410,6 +423,7 @@ export async function routeQuery(input: QueryRouterInput): Promise<QueryRoutingD
     reasoning:
       input.requested?.vectorWeight != null ||
       input.requested?.graphWeight != null ||
+      input.requested?.bm25Weight != null ||
       input.requested?.k != null ||
       input.requested?.filters != null
         ? `${routed.reasoning} Request overrides were applied.`

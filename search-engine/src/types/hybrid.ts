@@ -15,6 +15,7 @@ export interface HybridSearchRequest {
   k?: number;
   vectorWeight?: number;
   graphWeight?: number;
+  bm25Weight?: number;
   filters?: HybridFilters;
   minScore?: number;
 }
@@ -24,7 +25,7 @@ export interface VerseResult {
   text: string;
   reference: string;
   score: number;
-  source: "vector" | "graph" | "hybrid";
+  source: "vector" | "graph" | "bm25" | "hybrid";
 }
 
 export interface EntityFact {
@@ -47,8 +48,10 @@ export interface HybridSearchResponse {
   metadata: {
     vectorWeight: number;
     graphWeight: number;
+    bm25Weight: number;
     totalVectorResults: number;
     totalGraphResults: number;
+    totalBM25Results: number;
     processingTimeMs: number;
     routing?: {
       intent: QueryIntent;

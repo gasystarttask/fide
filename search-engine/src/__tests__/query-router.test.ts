@@ -12,8 +12,9 @@ describe("query-router French heuristics", () => {
 
     expect(result.source).toBe("heuristic");
     expect(result.intent).toBe("GENEALOGY");
-    expect(result.vectorWeight).toBe(0.8);
-    expect(result.graphWeight).toBe(0.2);
+    expect(result.vectorWeight).toBe(0.68);
+    expect(result.graphWeight).toBe(0.17);
+    expect(result.bm25Weight).toBe(0.15);
     expect(result.k).toBe(6);
   });
 
@@ -28,7 +29,8 @@ describe("query-router French heuristics", () => {
     const result = await routeQuery({ query: "Ou Abraham est-il situe en Egypte ?" });
 
     expect(result.intent).toBe("GEOGRAPHY");
-    expect(result.vectorWeight).toBe(0.5);
-    expect(result.graphWeight).toBe(0.5);
+    expect(result.vectorWeight).toBe(0.3);
+    expect(result.graphWeight).toBe(0.3);
+    expect(result.bm25Weight).toBe(0.4);
   });
 });

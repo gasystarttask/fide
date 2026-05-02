@@ -28,8 +28,10 @@ const {
     metadata: {
       vectorWeight: 0.8,
       graphWeight: 0.2,
+      bm25Weight: 0,
       totalVectorResults: 6,
       totalGraphResults: 0,
+      totalBM25Results: 0,
     },
   });
 
@@ -44,6 +46,7 @@ const {
     latencyMs: 0,
     vectorWeight: 0.8,
     graphWeight: 0.2,
+    bm25Weight: 0,
     k: 6,
     filters: undefined,
   });

@@ -13,8 +13,10 @@ const { retrieveMock, HybridRetrieverMock, getDbMock, routeQueryMock } = vi.hois
     metadata: {
       vectorWeight: 0.9,
       graphWeight: 0.1,
+      bm25Weight: 0.0,
       totalVectorResults: 0,
       totalGraphResults: 0,
+      totalBM25Results: 0,
     },
   });
 
@@ -31,6 +33,7 @@ const { retrieveMock, HybridRetrieverMock, getDbMock, routeQueryMock } = vi.hois
     latencyMs: 0,
     vectorWeight: 0.9,
     graphWeight: 0.1,
+    bm25Weight: 0,
     k: 5,
     filters: undefined,
   });
@@ -87,7 +90,7 @@ describe("POST /api/hybrid-search", () => {
 
   it("returns 400 if weights do not sum to 1.0", async () => {
     const POST = await getPOST();
-    const res = await POST(buildRequest({ query: "Abraham", vectorWeight: 0.5, graphWeight: 0.3 }));
+    const res = await POST(buildRequest({ query: "Abraham", vectorWeight: 0.5, graphWeight: 0.3, bm25Weight: 0.3 }));
     expect(res.status).toBe(400);
   });
 
@@ -140,6 +143,7 @@ describe("POST /api/hybrid-search", () => {
         k: undefined,
         vectorWeight: undefined,
         graphWeight: undefined,
+        bm25Weight: undefined,
         filters: undefined,
       },
     });
@@ -150,7 +154,8 @@ describe("POST /api/hybrid-search", () => {
     0.9,
     0.1,
     0.0,
-    undefined
+    undefined,
+    0
     );
   });
 
@@ -178,6 +183,7 @@ describe("POST /api/hybrid-search", () => {
       latencyMs: 121,
       vectorWeight: 0.5,
       graphWeight: 0.5,
+      bm25Weight: 0,
       k: 8,
       filters: { book: "Genesis", testament: "Old Testament" },
     });
@@ -192,7 +198,8 @@ describe("POST /api/hybrid-search", () => {
       0.5,
       0.5,
       0.0,
-      { book: "Genesis", testament: "Old Testament" }
+      { book: "Genesis", testament: "Old Testament" },
+      0
     );
   });
 });
