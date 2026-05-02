@@ -15,6 +15,7 @@ function createCopilotClient(): OpenAI {
 const DEFAULT_MODEL = process.env.GROUNDED_ANSWER_MODEL ?? "gpt-4o-mini";
 const UNKNOWN_RESPONSE = "Je ne sais pas d'après les Écritures fournies.";
 const PROMPT_VERSION = "us-010.v2";
+const CONTEXT_DEBUG = process.env.CONTEXT_INJECTION_DEBUG === "true";
 
 const OUT_OF_DOMAIN_MARKERS = [
   "elon musk", "einstein", "napoleon", "hitler", "newton", "shakespeare",
@@ -30,6 +31,12 @@ export function isOutOfDomainQuery(query: string): boolean {
 export interface AssembledContext {
   text: string;
   references: string[];
+  sourceReferences: {
+    vector: string[];
+    graph: string[];
+    bm25: string[];
+    hybrid: string[];
+  };
 }
 
 export interface GroundedAnswerResult {
@@ -65,7 +72,17 @@ function canonicalizeRelationType(rawType: string): string {
 }
 
 export function assembleHybridContext(verses: VerseResult[], entityFacts: EntityFact[]): AssembledContext {
-  const verseLines = verses.map((verse) => `[${verse.reference}] ${verse.text}`);
+  const sourceReferences = {
+    vector: verses.filter((verse) => verse.source === "vector").map((verse) => verse.reference),
+    graph: verses.filter((verse) => verse.source === "graph").map((verse) => verse.reference),
+    bm25: verses.filter((verse) => verse.source === "bm25").map((verse) => verse.reference),
+    hybrid: verses.filter((verse) => verse.source === "hybrid").map((verse) => verse.reference),
+  };
+
+  const verseLines = verses.map((verse) => {
+    const debugPrefix = CONTEXT_DEBUG && verse.source === "bm25" ? "[BM25 match:] " : "";
+    return `[${verse.reference}] ${debugPrefix}${verse.text}`;
+  });
   const aliasLines: string[] = [];
 
   const entityLines = entityFacts.map((entity) => {
@@ -107,6 +124,7 @@ export function assembleHybridContext(verses: VerseResult[], entityFacts: Entity
   return {
     text,
     references: verses.map((verse) => verse.reference),
+    sourceReferences,
   };
 }
 

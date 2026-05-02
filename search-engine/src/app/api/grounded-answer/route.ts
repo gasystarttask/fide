@@ -38,9 +38,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     k,
     vectorWeight,
     graphWeight,
+    bm25Weight,
     filters,
     minScore = 0.0,
   } = body;
+
+  const disableBM25 = req.nextUrl.searchParams.get("disableBM25") === "true";
 
   if (!query || typeof query !== "string" || query.trim().length === 0) {
     return NextResponse.json(
@@ -73,6 +76,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           k,
           vectorWeight,
           graphWeight,
+          bm25Weight,
           filters,
         },
       });
@@ -85,7 +89,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         routing.vectorWeight,
         routing.graphWeight,
         minScore,
-        routing.filters
+        routing.filters,
+        disableBM25 ? 0 : routing.bm25Weight
       );
 
       verses = retrievalResult.verses;
@@ -100,6 +105,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           latencyMs: routing.latencyMs,
           filters: routing.filters,
           k: routing.k,
+          bm25Weight: disableBM25 ? 0 : routing.bm25Weight,
+          bm25Disabled: disableBM25,
         },
       };
 

@@ -35,6 +35,8 @@ describe("context-injection", () => {
     expect(context.text).toContain("PARENT_OF -> Manassé");
     expect(context.text).toContain("Yossef => Joseph");
     expect(context.references).toEqual(["Genèse 46:19"]);
+    expect(context.sourceReferences.hybrid).toEqual(["Genèse 46:19"]);
+    expect(context.sourceReferences.bm25).toEqual([]);
   });
 
   it("builds strict grounding prompt rules in French", () => {

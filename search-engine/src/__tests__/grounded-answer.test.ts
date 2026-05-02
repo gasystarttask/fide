@@ -89,8 +89,8 @@ vi.mock("@search/lib/context-injection", () => ({
   generateGroundedAnswerStream: generateGroundedAnswerStreamMock,
 }));
 
-function buildRequest(body: object): NextRequest {
-  return new NextRequest("http://localhost:3000/api/grounded-answer", {
+function buildRequest(body: object, url = "http://localhost:3000/api/grounded-answer"): NextRequest {
+  return new NextRequest(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
@@ -156,6 +156,27 @@ describe("POST /api/grounded-answer", () => {
     const json = await res.json();
     expect(json.metadata.source).toBe("retrieved-context");
     expect(json.metadata.retrieval).toBeTruthy();
+  });
+
+  it("disables BM25 when disableBM25 query param is true", async () => {
+    const POST = await getPOST();
+    const res = await POST(
+      buildRequest(
+        { query: "Qui est le fils de Joseph ?" },
+        "http://localhost:3000/api/grounded-answer?disableBM25=true"
+      )
+    );
+
+    expect(res.status).toBe(200);
+    expect(retrieveMock).toHaveBeenCalledWith(
+      "Qui est le fils de Joseph ?",
+      6,
+      0.8,
+      0.2,
+      0,
+      undefined,
+      0
+    );
   });
 
   it("returns uncertain answer for out-of-domain query", async () => {

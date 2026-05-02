@@ -109,6 +109,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           latencyMs: routing.latencyMs,
           filters: routing.filters,
           k: routing.k,
+          bm25Weight: routing.bm25Weight,
         },
       },
     };

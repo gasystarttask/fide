@@ -172,6 +172,7 @@ describe("POST /api/hybrid-search", () => {
       latencyMs: 0,
       filters: undefined,
       k: 5,
+      bm25Weight: 0,
     });
   });
 
