@@ -4,37 +4,10 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { AnimatePresence, motion } from "framer-motion";
-
-type VersePreview = {
-  reference: string;
-  text: string;
-  book?: string;
-  chapter?: number;
-  verse?: number;
-  metadata?: {
-    testament?: string;
-    version?: string;
-  } | null;
-};
-
-type ChatPart = {
-  type?: string;
-  text?: string;
-};
-
-type EntityRelation = {
-  type: string;
-  targetName: string;
-  targetSlug: string;
-};
-
-type EntityFact = {
-  slug: string;
-  name: string;
-  type: string;
-  relations?: EntityRelation[];
-};
+import { ChatMessageList } from "./components/chat/ChatMessageList";
+import { ChatComposer } from "./components/chat/ChatComposer";
+import { SourceSidebar } from "./components/sidebar/SourceSidebar";
+import type { ChatPart, EntityFact, UIText, VersePreview } from "./components/types";
 
 type HybridSearchResponse = {
   entityFacts?: EntityFact[];
@@ -319,7 +292,7 @@ function buildRelationSnippets(entityFacts: EntityFact[], locale: Locale, maxSni
 export default function Home() {
   const [locale, setLocale] = useState<Locale>("en");
   const [draft, setDraft] = useState(COPY.en.defaultDraft);
-    const uiText = COPY[locale];
+  const uiText = COPY[locale] as UIText;
 
     useEffect(() => {
       if (typeof window === "undefined") {
@@ -493,197 +466,51 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#bdc7f5,#edeeff_35%,#f8fafc)] px-3 py-6 text-stone-900 sm:px-6">
       <div className="mx-auto grid w-full max-w-6xl items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="flex h-[calc(100vh-3rem)] min-h-135 flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white/90 p-4 shadow-sm sm:p-6">
+        <section className="flex h-[calc(100vh-3rem)] min-h-[540px] flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white/90 p-4 shadow-sm sm:p-6">
           <header className="mb-4 shrink-0 border-b border-stone-200 pb-3">
             <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{uiText.title}</h1>
-            <p className="mt-1 text-sm text-stone-600">
-              {uiText.subtitle}
-            </p>
+            <p className="mt-1 text-sm text-stone-600">{uiText.subtitle}</p>
           </header>
 
           <div className="flex-1 overflow-y-auto pr-1">
-            <div className="space-y-3">
-            {cooldownSeconds > 0 ? (
-              <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="rounded-xl border border-red-200 bg-red-50 p-3"
-              >
-                <p className="text-sm font-medium text-red-800">{uiText.rateLimitTitle}</p>
-                <p className="mt-1 text-sm text-red-700">{uiText.rateLimitRetry(cooldownSeconds)}</p>
-              </motion.div>
-            ) : null}
-
-            <AnimatePresence initial={false}>
-              {messages.map((message) => {
-                const isAssistant = message.role === "assistant";
-                const bubbleClass = isAssistant
-                  ? "border-indigo-200 bg-indigo-50"
-                  : "border-stone-300 bg-stone-100";
-                const text = getMessageText(message);
-
-                return (
-                  <motion.article
-                    key={message.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className={`rounded-xl border p-3 ${bubbleClass}`}
-                  >
-                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-stone-500">
-                      {isAssistant ? uiText.roleAssistant : uiText.roleUser}
-                    </p>
-                    <p className="whitespace-pre-wrap wrap-break-word leading-7">
-                      {isAssistant ? renderMessageWithCitations(text, openCitation) : text}
-                    </p>
-                  </motion.article>
-                );
-              })}
-            </AnimatePresence>
-
-            {isRetrieving ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="rounded-xl border border-indigo-200 bg-indigo-50 p-3"
-              >
-                <p className="text-sm font-medium text-indigo-900">{uiText.retrievingContext}</p>
-                <div className="mt-2 h-3 w-3/4 animate-pulse rounded bg-indigo-200" />
-                <div className="mt-2 h-3 w-5/6 animate-pulse rounded bg-indigo-100" />
-              </motion.div>
-            ) : null}
-
-            {isStreaming ? (
-              <p className="text-xs text-stone-500">{uiText.assistantStreaming}</p>
-            ) : null}
-
-            {error ? (
-              <p className="rounded-lg border border-red-200 bg-red-50 p-2 text-sm text-red-700">
-                {error.message}
-              </p>
-            ) : null}
-            </div>
+            <ChatMessageList
+              cooldownSeconds={cooldownSeconds}
+              uiText={uiText}
+              messages={messages}
+              isRetrieving={isRetrieving}
+              isStreaming={isStreaming}
+              errorMessage={error?.message}
+              onCitationClick={openCitation}
+              renderMessageWithCitations={renderMessageWithCitations}
+              getMessageText={getMessageText}
+            />
           </div>
 
-          <form className="mt-4 shrink-0 flex flex-col gap-2 border-t border-stone-200 pt-4 sm:flex-row" onSubmit={onSubmit}>
-            <input
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              placeholder={uiText.inputPlaceholder}
-              className="min-w-0 flex-1 rounded-lg border border-stone-300 px-3 py-2 outline-none ring-indigo-400 focus:ring"
-            />
-            <button
-              type="submit"
-              disabled={!canSubmit || !draft.trim()}
-              className="rounded-lg bg-stone-900 px-4 py-2 text-white disabled:cursor-not-allowed disabled:bg-stone-400"
-            >
-              {cooldownSeconds > 0
-                ? uiText.retryCta(cooldownSeconds)
-                : isStreaming || isRetrieving
-                  ? uiText.inProgressCta
-                  : uiText.sendCta}
-            </button>
-          </form>
+          <ChatComposer
+            draft={draft}
+            setDraft={setDraft}
+            onSubmit={onSubmit}
+            canSubmit={canSubmit}
+            cooldownSeconds={cooldownSeconds}
+            isStreaming={isStreaming}
+            isRetrieving={isRetrieving}
+            uiText={uiText}
+          />
         </section>
 
-        <aside className="rounded-2xl border border-stone-200 bg-white/90 p-4 shadow-sm sm:p-5 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-600">{uiText.sourcePreviewTitle}</h2>
-          {!selectedCitation ? (
-            <p className="mt-3 text-sm text-stone-500">
-              {uiText.sourcePreviewHint}
-            </p>
-          ) : null}
-
-          {selectedCitation ? (
-            <div className="mt-3 rounded-xl border border-stone-200 bg-stone-50 p-3">
-              <p className="text-xs uppercase tracking-wide text-stone-500">{uiText.citationLabel}</p>
-              <p className="text-sm font-medium text-stone-800">{selectedCitation}</p>
-            </div>
-          ) : null}
-
-          {previewLoading ? (
-            <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50 p-3">
-              <div className="h-3 w-20 animate-pulse rounded bg-indigo-200" />
-              <div className="mt-2 h-3 w-full animate-pulse rounded bg-indigo-100" />
-              <div className="mt-2 h-3 w-5/6 animate-pulse rounded bg-indigo-100" />
-            </div>
-          ) : null}
-
-          {previewError ? (
-            <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2 text-sm text-red-700">
-              {previewError}
-            </p>
-          ) : null}
-
-          {preview ? (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3"
-            >
-              <p className="text-xs uppercase tracking-wide text-emerald-700">{uiText.referenceLabel}</p>
-              <p className="text-sm font-semibold text-emerald-900">{preview.reference}</p>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-emerald-900">{preview.text}</p>
-              {preview.metadata?.version ? (
-                <p className="mt-2 text-xs text-emerald-700">{uiText.versionLabel}: {preview.metadata.version}</p>
-              ) : null}
-            </motion.div>
-          ) : null}
-
-          <div className="mt-4 border-t border-stone-200 pt-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-stone-600">{uiText.graphTitle}</h3>
-            <div className="mt-3 lg:max-h-[42vh] lg:overflow-y-auto lg:pr-1">
-              {graphLoading ? (
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-3">
-                  <div className="h-3 w-24 animate-pulse rounded bg-indigo-200" />
-                  <div className="mt-2 h-3 w-full animate-pulse rounded bg-indigo-100" />
-                  <div className="mt-2 h-3 w-5/6 animate-pulse rounded bg-indigo-100" />
-                </div>
-              ) : null}
-
-              {graphError ? (
-                <p className="rounded-lg border border-red-200 bg-red-50 p-2 text-sm text-red-700">
-                  {graphError}
-                </p>
-              ) : null}
-
-              {!graphLoading && !graphError && entityFacts.length === 0 ? (
-                <p className="text-sm text-stone-500">{uiText.noEntities}</p>
-              ) : null}
-
-              {entityFacts.length > 0 ? (
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-stone-500">{uiText.entityChips}</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {entityFacts.map((entity) => (
-                      <button
-                        key={entity.slug}
-                        type="button"
-                        disabled={!canSubmit}
-                        onClick={() => onEntityChipClick(entity.name)}
-                        className="rounded-full border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {entity.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {relationSnippets.length > 0 ? (
-                <div className="mt-3 rounded-xl border border-stone-200 bg-stone-50 p-3">
-                  <p className="text-xs uppercase tracking-wide text-stone-500">{uiText.relationSnippets}</p>
-                  <ul className="mt-2 space-y-1.5 text-sm text-stone-700">
-                    {relationSnippets.map((snippet) => (
-                      <li key={snippet}>{snippet}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </aside>
+        <SourceSidebar
+          uiText={uiText}
+          selectedCitation={selectedCitation}
+          previewLoading={previewLoading}
+          previewError={previewError}
+          preview={preview}
+          graphLoading={graphLoading}
+          graphError={graphError}
+          entityFacts={entityFacts}
+          relationSnippets={relationSnippets}
+          canSubmit={canSubmit}
+          onEntityChipClick={onEntityChipClick}
+        />
       </div>
     </main>
   );
