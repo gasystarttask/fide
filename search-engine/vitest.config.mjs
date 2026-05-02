@@ -5,6 +5,8 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     globals: true,
+    setupFiles: ['./vitest.setup.ts'],
+    clearMocks: true,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html']
