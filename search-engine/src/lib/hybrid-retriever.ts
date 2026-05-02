@@ -1,5 +1,6 @@
 import { Db, Collection } from "mongodb";
 import OpenAI from "openai";
+import { getMeilisearchClient, isMeilisearchDisabled } from "@search/lib/meilisearch-client";
 import type { EntityFact, VerseResult } from "@search/types/hybrid";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -9,6 +10,8 @@ const EMBEDDING_CACHE_TTL_MS = 10 * 60 * 1000;
 const EMBEDDING_CACHE_MAX = 500;
 const RETRIEVE_CACHE_TTL_MS = 45 * 1000;
 const RETRIEVE_CACHE_MAX = 300;
+const BM25_CIRCUIT_BREAKER_THRESHOLD = 3;
+const BM25_CIRCUIT_BREAKER_COOLDOWN_MS = 5 * 60 * 1000;
 
 interface VerseMetadata {
   testament?: string;
@@ -84,6 +87,15 @@ interface RankedVerseResult extends VerseResult {
   entitySlugs?: string[];
 }
 
+interface BM25VerseHit {
+  id: string;
+  book: string;
+  chapter: number;
+  verse: number;
+  text: string;
+  _rankingScore?: number;
+}
+
 interface CacheEntry<T> {
   value: T;
   expiresAt: number;
@@ -98,12 +110,19 @@ const retrieveCache = new Map<
     metadata: {
       vectorWeight: number;
       graphWeight: number;
+        bm25Weight: number;
       totalVectorResults: number;
       totalGraphResults: number;
+        totalBM25Results: number;
       cached?: boolean;
     };
   }>
 >();
+
+const bm25CircuitState = {
+  consecutiveFailures: 0,
+  openUntil: 0,
+};
 
 const PER_VERSE_SLUG_RX =
   /-(?:gen|exo|lev|nom|deu|jos|jug|rut|sam|roi|chr|esd|neh|est|job|psa|pro|ecc|esa|jer|eze|dan|hos|joe|amo|abd|jon|mic|nah|hab|sop|agg|zac|mal|mat|mar|luc|jean|act|rom|cor|gal|eph|phi|col|the|tim|tit|phm|heb|jac|pie|jud|apo)(?:-?\d+)?$/i;
@@ -169,6 +188,45 @@ function reciprocalRankFusion(
       score,
       source: "hybrid" as const,
     }));
+}
+
+function normalizeSearchWeights(
+  vectorWeight: number,
+  graphWeight: number,
+  bm25Weight: number
+): { vectorWeight: number; graphWeight: number; bm25Weight: number } {
+  const vw = Number.isFinite(vectorWeight) ? Math.max(0, vectorWeight) : 0;
+  const gw = Number.isFinite(graphWeight) ? Math.max(0, graphWeight) : 0;
+  const bw = Number.isFinite(bm25Weight) ? Math.max(0, bm25Weight) : 0;
+  const total = vw + gw + bw;
+
+  if (total <= 0) {
+    return { vectorWeight: 0.6, graphWeight: 0.1, bm25Weight: 0.3 };
+  }
+
+  return {
+    vectorWeight: Number((vw / total).toFixed(3)),
+    graphWeight: Number((gw / total).toFixed(3)),
+    bm25Weight: Number((bw / total).toFixed(3)),
+  };
+}
+
+function isBm25CircuitOpen(): boolean {
+  return bm25CircuitState.openUntil > nowMs();
+}
+
+function recordBm25Success(): void {
+  bm25CircuitState.consecutiveFailures = 0;
+  bm25CircuitState.openUntil = 0;
+}
+
+function recordBm25Failure(): void {
+  bm25CircuitState.consecutiveFailures += 1;
+
+  if (bm25CircuitState.consecutiveFailures >= BM25_CIRCUIT_BREAKER_THRESHOLD) {
+    bm25CircuitState.openUntil = nowMs() + BM25_CIRCUIT_BREAKER_COOLDOWN_MS;
+    bm25CircuitState.consecutiveFailures = 0;
+  }
 }
 
 function escapeRegex(input: string): string {
@@ -593,7 +651,7 @@ export class HybridRetriever {
     const docs = await this.versesCol.aggregate<ProjectedVerseDoc>(pipeline).toArray();
 
     return docs.slice(0, k).map((doc) => ({
-      id: toId(doc._id),
+      id: doc.id ?? toId(doc._id),
       text: doc.text,
       reference: buildReference(doc),
       score: doc.score ?? 0,
@@ -676,6 +734,7 @@ export class HybridRetriever {
             {
               projection: {
                 _id: 1,
+                id: 1,
                 book: 1,
                 chapter: 1,
                 verse: 1,
@@ -690,13 +749,57 @@ export class HybridRetriever {
     }
 
     return docs.slice(0, k).map((doc, index) => ({
-      id: toId(doc._id),
+      id: doc.id ?? toId(doc._id),
       text: doc.text,
       reference: buildReference(doc),
       score: 1 / (index + 1),
       source: "graph" as const,
       entitySlugs: doc.entity_slugs ?? [],
     }));
+  }
+
+  async bm25Search(
+    query: string,
+    k: number,
+    filters?: { testament?: string; book?: string }
+  ): Promise<RankedVerseResult[]> {
+    if (isMeilisearchDisabled()) return [];
+    if (isBm25CircuitOpen()) return [];
+
+    try {
+      const client = getMeilisearchClient();
+      const index = client.index("verses_bm25");
+
+      const filterClauses: string[] = [];
+      if (filters?.book) {
+        filterClauses.push(`book = "${filters.book.replace(/"/g, '\\"')}"`);
+      }
+      if (filters?.testament) {
+        const testament = /nouveau|new/i.test(filters.testament) ? "New" : "Old";
+        filterClauses.push(`testament = "${testament}"`);
+      }
+
+      const response = await index.search<BM25VerseHit>(query, {
+        limit: Math.max(k * 2, 12),
+        filter: filterClauses.length ? filterClauses : undefined,
+        showRankingScore: true,
+      });
+
+      recordBm25Success();
+
+      return (response.hits ?? []).slice(0, k).map((hit, indexPosition) => ({
+        id: hit.id,
+        text: hit.text,
+        reference: `${hit.book} ${hit.chapter}:${hit.verse}`,
+        score: hit._rankingScore ?? 1 / (indexPosition + 1),
+        source: "bm25" as const,
+        entitySlugs: [],
+      }));
+    } catch (error) {
+      recordBm25Failure();
+      console.warn("[hybrid-retriever] BM25 unavailable, fallback to vector+graph", error);
+      return [];
+    }
   }
 
   async augmentWithEntityFacts(entitySlugs: string[]): Promise<EntityFact[]> {
@@ -795,13 +898,17 @@ export class HybridRetriever {
     vectorWeight = 0.7,
     graphWeight = 0.3,
     minScore = 0.0,
-    filters?: { testament?: string; book?: string }
+    filters?: { testament?: string; book?: string },
+    bm25Weight = 0.3
   ) {
+    const normalizedWeights = normalizeSearchWeights(vectorWeight, graphWeight, bm25Weight);
+
     const cacheKey = JSON.stringify({
       q: normalizeLoose(query),
       k,
-      vw: vectorWeight,
-      gw: graphWeight,
+      vw: normalizedWeights.vectorWeight,
+      gw: normalizedWeights.graphWeight,
+      bw: normalizedWeights.bm25Weight,
       ms: minScore,
       f: {
         testament: filters?.testament ? normalizeLoose(filters.testament) : undefined,
@@ -817,17 +924,25 @@ export class HybridRetriever {
       };
     }
 
-    const vectorSearchK = vectorWeight <= 0.15 ? Math.max(4, k) : k * 2;
-    const graphSearchK = graphWeight >= 0.8 ? Math.max(k + 2, 8) : k * 2;
+    const vectorSearchK = normalizedWeights.vectorWeight <= 0.15 ? Math.max(4, k) : k * 2;
+    const graphSearchK = normalizedWeights.graphWeight >= 0.7 ? Math.max(k + 2, 8) : k * 2;
+    const bm25SearchK = normalizedWeights.bm25Weight >= 0.35 ? Math.max(k + 3, 10) : k * 2;
 
-    const [vectorResults, graphResults] = await Promise.all([
-      vectorWeight <= 0.1 ? Promise.resolve([]) : this.vectorSearch(query, vectorSearchK, filters),
-      graphWeight <= 0.25 ? Promise.resolve([]) : this.graphSearch(query, graphSearchK, filters),
+    const [vectorResults, graphResults, bm25Results] = await Promise.all([
+      normalizedWeights.vectorWeight <= 0.1
+        ? Promise.resolve([])
+        : this.vectorSearch(query, vectorSearchK, filters),
+      normalizedWeights.graphWeight <= 0.1
+        ? Promise.resolve([])
+        : this.graphSearch(query, graphSearchK, filters),
+      normalizedWeights.bm25Weight <= 0.05
+        ? Promise.resolve([])
+        : this.bm25Search(query, bm25SearchK, filters),
     ]);
 
     const merged = reciprocalRankFusion(
-      [vectorResults, graphResults],
-      [vectorWeight, graphWeight]
+      [vectorResults, graphResults, bm25Results],
+      [normalizedWeights.vectorWeight, normalizedWeights.graphWeight, normalizedWeights.bm25Weight]
     );
 
     const reranked = isGenealogyQuery(query) ? rerankByQueryOverlap(query, merged) : merged;
@@ -861,10 +976,12 @@ export class HybridRetriever {
       verses,
       entityFacts,
       metadata: {
-        vectorWeight,
-        graphWeight,
+        vectorWeight: normalizedWeights.vectorWeight,
+        graphWeight: normalizedWeights.graphWeight,
+        bm25Weight: normalizedWeights.bm25Weight,
         totalVectorResults: vectorResults.length,
         totalGraphResults: graphResults.length,
+        totalBM25Results: bm25Results.length,
       },
     };
 

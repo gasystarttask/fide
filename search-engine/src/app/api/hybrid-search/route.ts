@@ -30,6 +30,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     k,
     vectorWeight,
     graphWeight,
+    bm25Weight,
     filters,
     minScore = 0.0,
   } = body;
@@ -44,10 +45,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (
     vectorWeight != null &&
     graphWeight != null &&
-    Number((vectorWeight + graphWeight).toFixed(3)) !== 1.0
+    bm25Weight != null &&
+    Number((vectorWeight + graphWeight + bm25Weight).toFixed(3)) !== 1.0
   ) {
     return NextResponse.json(
-      { error: "'vectorWeight' + 'graphWeight' must equal 1.0." },
+      { error: "'vectorWeight' + 'graphWeight' + 'bm25Weight' must equal 1.0." },
       { status: 400 }
     );
   }
@@ -60,6 +62,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         k,
         vectorWeight,
         graphWeight,
+        bm25Weight,
         filters,
       },
     });
@@ -71,6 +74,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       reasoning: routing.reasoning,
       vectorWeight: routing.vectorWeight,
       graphWeight: routing.graphWeight,
+      bm25Weight: routing.bm25Weight,
       k: routing.k,
       filters: routing.filters,
       latencyMs: routing.latencyMs,
@@ -85,7 +89,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       routing.vectorWeight,
       routing.graphWeight,
       minScore,
-      routing.filters
+      routing.filters,
+      routing.bm25Weight
     );
 
     const processingTimeMs = Date.now() - start;
