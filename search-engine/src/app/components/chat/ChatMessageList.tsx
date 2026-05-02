@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import type { ChatMessage, RenderMessageWithCitations, UIText } from "../types";
+import type { ChatMessage, RenderMessageWithCitations, UIText } from "../../types/ui";
 
 type ChatMessageListProps = {
   cooldownSeconds: number;

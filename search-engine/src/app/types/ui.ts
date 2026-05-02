@@ -37,6 +37,12 @@ export type EntityFact = {
   relations?: EntityRelation[];
 };
 
+export type HybridSearchResponse = {
+  entityFacts?: EntityFact[];
+};
+
+export type Locale = "en" | "fr";
+
 export type UIText = {
   title: string;
   subtitle: string;

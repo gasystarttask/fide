@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import type { UIText } from "../types";
+import type { UIText } from "../../types/ui";
 
 type ChatComposerProps = {
   draft: string;

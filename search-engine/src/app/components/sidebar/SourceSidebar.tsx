@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import type { EntityFact, UIText, VersePreview } from "../types";
+import type { EntityFact, UIText, VersePreview } from "../../types/ui";
 
 type SourceSidebarProps = {
   uiText: UIText;
