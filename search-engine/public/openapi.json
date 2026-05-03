@@ -46,12 +46,12 @@
               "examples": {
                 "basic": {
                   "value": {
-                    "query": "foi et perseverance",
+                    "query": "Qu'est-ce que la foi ?",
                     "k": 5,
-                    "minScore": 0.6,
+                    "minScore": 0.57,
                     "filters": {
                       "testament": "New",
-                      "book": "Hebrews"
+                      "book": "Hébreux"
                     }
                   }
                 }
