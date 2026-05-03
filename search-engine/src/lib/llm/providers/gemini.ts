@@ -23,6 +23,16 @@ function buildGeminiUrl(model: string, apiKey: string): string {
 }
 
 function toGeminiBody(request: LlmCompletionRequest, model: string): RequestInit {
+  return toGeminiRequest(request, model);
+}
+
+function toGeminiRequest(
+  request: LlmCompletionRequest,
+  model: string,
+  responseMimeType?: string
+): RequestInit {
+  const systemMessage = request.messages.find((message) => message.role === "system");
+
   return {
     method: "POST",
     headers: {
@@ -32,11 +42,11 @@ function toGeminiBody(request: LlmCompletionRequest, model: string): RequestInit
       generationConfig: {
         temperature: request.temperature ?? 0,
         maxOutputTokens: request.maxTokens,
-        responseMimeType: "application/json",
+        responseMimeType,
       },
-      systemInstruction: request.messages.find((message) => message.role === "system")
+      systemInstruction: systemMessage
         ? {
-            parts: [{ text: request.messages.find((message) => message.role === "system")?.content ?? "" }],
+            parts: [{ text: systemMessage.content }],
           }
         : undefined,
       contents: request.messages
@@ -75,11 +85,23 @@ function createGeminiClient(options: ResolvedLlmClientOptions): LlmClient {
     },
 
     async completeJson<T>(request: LlmJsonRequest): Promise<T> {
-      const response = await this.complete(request);
-      if (!response.content) {
+      const model = request.model ?? options.model;
+      const apiKey = options.secrets.geminiApiKey ?? options.secrets.apiKey ?? "";
+      const rawResponse = await fetch(
+        buildGeminiUrl(model, apiKey),
+        toGeminiRequest(request, model, "application/json")
+      );
+
+      if (!rawResponse.ok) {
+        throw new Error(`Gemini request failed with status ${rawResponse.status}.`);
+      }
+
+      const payload = (await rawResponse.json()) as GeminiResponse;
+      const response = extractGeminiText(payload);
+      if (!response) {
         throw new Error("Provider gemini returned an empty JSON response.");
       }
-      return JSON.parse(response.content) as T;
+      return JSON.parse(response) as T;
     },
   };
 }

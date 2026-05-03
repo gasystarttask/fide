@@ -14,6 +14,7 @@ type OpenAICompatibleConfig = {
   provider: LlmProviderName;
   displayName: string;
   baseURL?: string;
+  resolveBaseUrl?: (options: ResolvedLlmClientOptions) => string | undefined;
   defaultHeaders?: Record<string, string>;
   resolveApiKey: (options: ResolvedLlmClientOptions) => string;
 };
@@ -28,7 +29,7 @@ function toOpenAIMessages(messages: LlmMessage[]): Array<{ role: LlmMessage["rol
 function createOpenAIClient(options: ResolvedLlmClientOptions, config: OpenAICompatibleConfig): OpenAI {
   return new OpenAI({
     apiKey: config.resolveApiKey(options),
-    baseURL: config.baseURL,
+    baseURL: config.resolveBaseUrl?.(options) ?? config.baseURL,
     defaultHeaders: config.defaultHeaders,
     timeout: options.timeoutMs,
     maxRetries: options.maxRetries,
@@ -140,7 +141,7 @@ export function createOllamaProvider(): RegisteredLlmProvider {
   return createOpenAICompatibleProvider({
     provider: "ollama",
     displayName: "Ollama",
-    baseURL: "http://localhost:11434/v1",
+    resolveBaseUrl: (options) => options.secrets.ollamaBaseUrl ?? options.secrets.baseUrl ?? "http://localhost:11434/v1",
     resolveApiKey: () => "ollama",
   });
 }
