@@ -1196,7 +1196,7 @@ export async function main(): Promise<void> {
     .filter(Boolean) as TargetBook[]
 
   const delayMs = Number(process.env.EXTRACT_DELAY_MS ?? '20000')
-  const model = process.env.COPILOTE_MODEL ?? 'gpt-4o-mini'
+  const model = process.env.COPILOT_MODEL ?? 'gpt-4o-mini'
 
   if (process.env.VERBOSE !== 'false') {
     console.log(`[extract-graph] config: model=${model}, delayMs=${delayMs}ms`)

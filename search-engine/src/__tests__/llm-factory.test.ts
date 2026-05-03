@@ -13,9 +13,10 @@ const envSnapshot = {
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,
   OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL,
   LLM_DEFAULT_PROVIDER: process.env.LLM_DEFAULT_PROVIDER,
+  LLM_CHAT_PROVIDER: process.env.LLM_CHAT_PROVIDER,
+  LLM_CHAT_MODEL: process.env.LLM_CHAT_MODEL,
   QUERY_ROUTER_MODEL: process.env.QUERY_ROUTER_MODEL,
   GROUNDED_ANSWER_MODEL: process.env.GROUNDED_ANSWER_MODEL,
-  COPILOTE_MODEL: process.env.COPILOTE_MODEL,
   COPILOT_MODEL: process.env.COPILOT_MODEL,
 };
 
@@ -58,9 +59,10 @@ describe("llm factory", () => {
     delete process.env.GEMINI_API_KEY;
     delete process.env.OLLAMA_BASE_URL;
     delete process.env.LLM_DEFAULT_PROVIDER;
+    delete process.env.LLM_CHAT_PROVIDER;
+    delete process.env.LLM_CHAT_MODEL;
     delete process.env.QUERY_ROUTER_MODEL;
     delete process.env.GROUNDED_ANSWER_MODEL;
-    delete process.env.COPILOTE_MODEL;
     delete process.env.COPILOT_MODEL;
   });
 
@@ -71,15 +73,16 @@ describe("llm factory", () => {
     restoreEnv("GEMINI_API_KEY", envSnapshot.GEMINI_API_KEY);
     restoreEnv("OLLAMA_BASE_URL", envSnapshot.OLLAMA_BASE_URL);
     restoreEnv("LLM_DEFAULT_PROVIDER", envSnapshot.LLM_DEFAULT_PROVIDER);
+    restoreEnv("LLM_CHAT_PROVIDER", envSnapshot.LLM_CHAT_PROVIDER);
+    restoreEnv("LLM_CHAT_MODEL", envSnapshot.LLM_CHAT_MODEL);
     restoreEnv("QUERY_ROUTER_MODEL", envSnapshot.QUERY_ROUTER_MODEL);
     restoreEnv("GROUNDED_ANSWER_MODEL", envSnapshot.GROUNDED_ANSWER_MODEL);
-    restoreEnv("COPILOTE_MODEL", envSnapshot.COPILOTE_MODEL);
     restoreEnv("COPILOT_MODEL", envSnapshot.COPILOT_MODEL);
   });
 
-  it("resolves legacy extraction model aliases", () => {
+  it("resolves the copilot extraction model from the canonical env", () => {
     process.env.GITHUB_TOKEN = "github-token";
-    process.env.COPILOTE_MODEL = "gpt-4o-mini-custom";
+    process.env.COPILOT_MODEL = "gpt-4o-mini-custom";
 
     const resolved = resolveAndValidateLlmClientOptions({
       purpose: "extraction",
@@ -155,6 +158,20 @@ describe("llm factory", () => {
 
     expect(resolved.provider).toBe("gemini");
     expect(resolved.model).toBe("gemini-2.5-flash");
+  });
+
+  it("does not leak purpose model to a different explicit provider", () => {
+    process.env.LLM_CHAT_PROVIDER = "gemini";
+    process.env.LLM_CHAT_MODEL = "gemini-2.5-flash";
+    process.env.OPENAI_API_KEY = "openai-key";
+
+    const resolved = resolveAndValidateLlmClientOptions({
+      purpose: "chat",
+      provider: "openai",
+    });
+
+    expect(resolved.provider).toBe("openai");
+    expect(resolved.model).toBe("gpt-4o-mini");
   });
 
   it("infers the provider from explicit secrets when provider is omitted", async () => {

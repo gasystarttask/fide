@@ -744,7 +744,7 @@ describe('US-005 - LLM Extraction Pipeline', () => {
     }, 15000)
 
     it('uses gpt-4o-mini by default', () => {
-      const model = process.env.COPILOTE_MODEL ?? 'gpt-4o-mini'
+      const model = process.env.COPILOT_MODEL ?? 'gpt-4o-mini'
       expect(model).toBe('gpt-4o-mini')
     })
 

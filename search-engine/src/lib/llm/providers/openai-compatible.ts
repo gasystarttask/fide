@@ -19,6 +19,24 @@ type OpenAICompatibleConfig = {
   resolveApiKey: (options: ResolvedLlmClientOptions) => string;
 };
 
+const DEFAULT_STREAM_TIMEOUT_MS = 30_000;
+
+async function readWithTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  provider: LlmProviderName
+): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(
+        () => reject(new Error(`Provider ${provider} stream timeout after ${timeoutMs}ms.`)),
+        timeoutMs
+      );
+    }),
+  ]);
+}
+
 function toOpenAIMessages(messages: LlmMessage[]): Array<{ role: LlmMessage["role"]; content: string }> {
   return messages.map((message) => ({
     role: message.role,
@@ -70,6 +88,7 @@ function createOpenAICompatibleClient(
 
     async *stream(request: LlmCompletionRequest): AsyncIterable<string> {
       const model = request.model ?? options.model;
+      const streamTimeoutMs = options.timeoutMs && options.timeoutMs > 0 ? options.timeoutMs : DEFAULT_STREAM_TIMEOUT_MS;
       const stream = await client.chat.completions.create({
         model,
         temperature: request.temperature ?? 0,
@@ -78,7 +97,14 @@ function createOpenAICompatibleClient(
         messages: toOpenAIMessages(request.messages),
       });
 
-      for await (const chunk of stream) {
+      const iterator = stream[Symbol.asyncIterator]();
+      while (true) {
+        const next = await readWithTimeout(iterator.next(), streamTimeoutMs, config.provider);
+        if (next.done) {
+          break;
+        }
+
+        const chunk = next.value;
         const token = chunk.choices[0]?.delta?.content;
         if (token) yield token;
       }

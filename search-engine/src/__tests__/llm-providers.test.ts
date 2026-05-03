@@ -164,4 +164,32 @@ describe("llm providers", () => {
       expect.any(Object)
     );
   });
+
+  it("normalizes leading-slash Gemini model names in URL and body", async () => {
+    process.env.GEMINI_API_KEY = "gemini-key";
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        candidates: [{ content: { parts: [{ text: "gemini response" }] } }],
+      }),
+    });
+    registerDefaultLlmProviders();
+
+    const client = await createLlmClient({
+      purpose: "chat",
+      provider: "gemini",
+      model: "/gemini-2.5-flash",
+    });
+
+    await client.complete({
+      messages: [{ role: "user", content: "hello" }],
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=gemini-key",
+      expect.objectContaining({
+        body: expect.stringContaining('"model":"gemini-2.5-flash"'),
+      })
+    );
+  });
 });
