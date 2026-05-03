@@ -181,8 +181,8 @@ export default function Home() {
     if (!trimmed || !canSubmit) return;
 
     setDraft("");
-    void loadGraphPreview(trimmed);
     await sendMessage({ text: trimmed });
+    await loadGraphPreview(trimmed);
   }
 
   async function onEntityChipClick(entityName: string) {
@@ -190,8 +190,8 @@ export default function Home() {
     if (!query || !canSubmit) return;
 
     setDraft("");
-    void loadGraphPreview(query);
     await sendMessage({ text: query });
+    await loadGraphPreview(query);
   }
 
   return (
