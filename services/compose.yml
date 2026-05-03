@@ -41,7 +41,7 @@ services:
     volumes:
       - ./scripts:/scripts:ro
   bible-chat-scholar:
-    image: ghcr.io/gasystarttask/bible-chat-scholar:main
+    image: ghcr.io/gasystarttask/bible-chat-scholar:v1.1.3-beta.6
     container_name: bible_chat_scholar
     depends_on:
       - documentdb

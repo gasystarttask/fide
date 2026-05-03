@@ -33,10 +33,10 @@ export const openApiSpec = {
               examples: {
                 basic: {
                   value: {
-                    query: "foi et perseverance",
+                    query: "Qu'est-ce que la foi ?",
                     k: 5,
-                    minScore: 0.6,
-                    filters: { testament: "New", book: "Hebrews" },
+                    minScore: 0.57,
+                    filters: { testament: "New", "book": "Hébreux" },
                   },
                 },
               },
