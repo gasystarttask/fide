@@ -33,7 +33,7 @@ export const openApiSpec = {
               examples: {
                 basic: {
                   value: {
-                    query: "faith and perseverance",
+                    query: "foi et perseverance",
                     k: 5,
                     minScore: 0.6,
                     filters: { testament: "New", book: "Hebrews" },
@@ -75,7 +75,7 @@ export const openApiSpec = {
       post: {
         tags: ["Hybrid"],
         summary: "Hybrid search",
-        description: "Combines vector retrieval and graph retrieval with routing.",
+        description: "Combines vector, graph, and BM25 retrieval with routing.",
         requestBody: {
           required: true,
           content: {
@@ -84,7 +84,7 @@ export const openApiSpec = {
               examples: {
                 genealogy: {
                   value: {
-                    query: "Who is the son of Joseph?",
+                    query: "Qui est le fils de Joseph ?",
                     k: 8,
                     vectorWeight: 0.2,
                     graphWeight: 0.7,
@@ -94,7 +94,7 @@ export const openApiSpec = {
                 },
                 theology: {
                   value: {
-                    query: "What does the Bible say about faith?",
+                    query: "Que dit la Bible au sujet de la foi ?",
                     k: 5,
                     vectorWeight: 0.6,
                     graphWeight: 0.1,
@@ -147,7 +147,7 @@ export const openApiSpec = {
         tags: ["Answer"],
         summary: "Generate grounded answer",
         description:
-          "Generates an answer grounded in retrieved verses and entity facts. Supports JSON or SSE stream output.",
+          "Generates an answer grounded in retrieved verses and entity facts. Supports JSON or SSE stream output. Retrieval routing remains BM25-aware internally.",
         requestBody: {
           required: true,
           content: {
@@ -156,16 +156,14 @@ export const openApiSpec = {
               examples: {
                 jsonMode: {
                   value: {
-                    query: "What does Romans say about faith?",
+                    query: "Que dit Romains au sujet de la foi ?",
                     stream: false,
                     k: 6,
-                    vectorWeight: 0.7,
-                    graphWeight: 0.3,
                   },
                 },
                 streamMode: {
                   value: {
-                    query: "Who are the relatives of Jacob?",
+                    query: "Qui est le fils de Jacob ?",
                     stream: true,
                   },
                 },
@@ -230,7 +228,7 @@ export const openApiSpec = {
                 ask: {
                   value: {
                     messages: [
-                      { role: "user", content: "Who is Abraham?" },
+                      { role: "user", content: "Qui est Abraham ?" },
                     ],
                   },
                 },

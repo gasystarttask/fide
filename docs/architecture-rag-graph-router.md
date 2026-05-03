@@ -5,7 +5,7 @@
 The Bible Search Engine combines three interacting systems to deliver accurate, contextualized biblical answers:
 
 1. **Query Router (US-009)**: Intent classification + adaptive parameter tuning
-2. **Hybrid Retriever**: Vector + Graph search with adaptive fanout
+2. **Hybrid Retriever**: Vector + Graph + BM25 search with adaptive fanout
 3. **Context Injection & Grounded Answer (US-010)**: LLM-based answer generation with citation enforcement
 4. **Streaming API (US-011)**: Real-time token streaming to frontend
 
@@ -24,11 +24,11 @@ graph TD
     B2 -->|resolve context| C
     
     C -->|heuristic + LLM| D["Intent Classification"]
-    D -->|THEOLOGY| E["Weight Profile:<br/>vw=0.9, gw=0.1, k=5"]
-    D -->|GENEALOGY| F["Weight Profile:<br/>vw=0.1, gw=0.9, k=6<br/>Fast: vw=0.8, gw=0.2"]
-    D -->|GEOGRAPHY| G["Weight Profile:<br/>vw=0.5, gw=0.5, k=8"]
-    D -->|CHRONOLOGY| H["Weight Profile:<br/>vw=0.4, gw=0.6, k=8"]
-    D -->|GENERAL| I["Weight Profile:<br/>vw=0.8, gw=0.2, k=5"]
+    D -->|THEOLOGY| E["Weight Profile:<br/>vw=0.63, gw=0.07, bw=0.30, k=5"]
+    D -->|GENEALOGY| F["Weight Profile:<br/>vw=0.15, gw=0.70, bw=0.15, k=6<br/>Fast: vw=0.68, gw=0.17, bw=0.15"]
+    D -->|GEOGRAPHY| G["Weight Profile:<br/>vw=0.30, gw=0.30, bw=0.40, k=8"]
+    D -->|CHRONOLOGY| H["Weight Profile:<br/>vw=0.35, gw=0.40, bw=0.25, k=8"]
+    D -->|GENERAL| I["Weight Profile:<br/>vw=0.48, gw=0.12, bw=0.40, k=5"]
     
     E --> J["Hybrid Retriever"]
     F --> J
@@ -38,18 +38,20 @@ graph TD
     
     J -->|adaptive fanout| K{"Check<br/>Weights"}
     K -->|vw <= 0.1| L["Skip Vector"]
-    K -->|gw > 0.25| M["Run Graph"]
-    K -->|gw <= 0.25| N["Skip Graph"]
-    K -->|else| O["Run Both"]
+    K -->|gw <= 0.1| N["Skip Graph"]
+    K -->|bw <= 0.05| P0["Skip BM25"]
+    K -->|otherwise| O["Run Enabled Paths"]
     
-    L --> P["Vector Search"]
-    M --> Q["Graph Search"]
+    O --> P["Vector Search"]
+    O --> Q["Graph Search"]
+    O --> R0["BM25 Search"]
+    L --> Q
     N --> P
-    O --> P
-    O --> Q
+    P0 --> P
     
     P --> R["Reciprocal Rank<br/>Fusion"]
     Q --> R
+    R0 --> R
     
     R -->|top k verses| S["Entity Fact<br/>Augmentation"]
     S -->|genealogy query?| T["Lexical Rerank<br/>by Query Overlap"]
@@ -98,16 +100,16 @@ Heuristic Intent Detection
   ↓
 [Fallback to intent config OR try LLM if heuristic uncertain]
   ↓
-Output: { intent, vectorWeight, graphWeight, k, filters }
+Output: { intent, vectorWeight, graphWeight, bm25Weight, k, filters }
   ↓
 [If genealogy + direct kinship pattern detected]
-  └─ Apply fast profile: { vw: 0.8, gw: 0.2, k: 6 }
+  └─ Apply fast profile: { vw: 0.68, gw: 0.17, bw: 0.15, k: 6 }
 ```
 
 **Key Optimizations**:
 - Kinship fast profile for genealogy: drops latency 6.6s → ~2s
 - Christology keywords added (Jesus, Christ, Messias)
-- GENERAL weight bumped to vector-only (0.8/0.2 to skip slow graph)
+- GENERAL profile tuned to `0.48/0.12/0.40` for balanced vector+BM25 retrieval
 
 ---
 
@@ -133,11 +135,12 @@ Output: { intent, vectorWeight, graphWeight, k, filters }
 **Adaptive Fanout** (New):
 ```
 if (vectorWeight <= 0.1) skip vectorSearch
-if (graphWeight <= 0.25) skip graphSearch
-else run both with dynamic k multiplier
+if (graphWeight <= 0.1) skip graphSearch
+if (bm25Weight <= 0.05) skip bm25Search
+else run enabled paths with dynamic k multipliers
 ```
 
-Result: For GENERAL/THEOLOGY (low graph weight), graph search is skipped entirely, saving 3–7s latency.
+Result: THEOLOGY usually skips graph (`gw=0.07`), while GENERAL keeps a light graph path (`gw=0.12`) and relies strongly on BM25.
 
 **Entity Enrichment**:
 - Aggregation pipeline: match entities → lookup relations → resolve targets
@@ -247,8 +250,8 @@ Result: TTFT (Time To First Token) < 1.5s after retrieval completes; no monolith
 ```
 Phase 1: Routing (heuristic)         ~0ms
 Phase 2: Vector Search                 ~1s (cold), ~100ms (warm)
-Phase 3: Graph Search                  SKIPPED (gw=0.1 < 0.25)
-Phase 4: RRF + Entity Enrichment      ~300ms
+Phase 3: Graph Search                  SKIPPED (gw=0.07 <= 0.1)
+Phase 4: BM25 + RRF + Entity Enrichment ~300ms
 Phase 5: LLM Generation                ~1.5s (cold), ~500ms (warm)
 ─────────────────────────────────────────────
 Total                                  ~2.8s (cold), ~0.6s+TTFT (stream)
@@ -258,9 +261,9 @@ Total                                  ~2.8s (cold), ~0.6s+TTFT (stream)
 
 ```
 Phase 1: Routing (heuristic kinship)   ~0ms
-         Apply fast profile: vw=0.8, gw=0.2, k=6
+         Apply fast profile: vw=0.68, gw=0.17, bw=0.15, k=6
 Phase 2: Vector Search                 ~1s (cold)
-Phase 3: Graph Search                  SKIPPED (gw=0.2 < 0.25)
+Phase 3: Graph Search                  ACTIVE (gw=0.17 > 0.1)
 Phase 4: RRF + Lexical Rerank          ~300ms
 Phase 5: LLM Generation                ~1.5s (cold)
 ─────────────────────────────────────────────
@@ -288,6 +291,7 @@ User Query
   ├─ Adaptive Fanout Decision
   ├─ Vector Search (semantic)
   ├─ Graph Search (structural) [maybe skipped]
+  ├─ BM25 Search (lexical) [maybe skipped]
   ├─ RRF Fusion
   └─ Entity Enrichment
   ↓
@@ -335,7 +339,7 @@ User Query
 
 - Intent distribution (what % genealogy vs theology?)
 - Cache hit ratio (embedding + retrieve caches)
-- Graph skip rate (should be high for GENERAL/THEOLOGY)
+- Graph/BM25 skip rates by intent (THEOLOGY should skip graph often)
 - TTFT for streaming queries
 - Citation validation failure rate
 
