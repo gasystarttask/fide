@@ -7,9 +7,10 @@ import {
   RelationTypeEnum,
   validateGraph
 } from '@search/shared/schemas/graph'
-import { ChatOpenAI, ChatOpenAIFields } from '@langchain/openai'
 import PQueue from 'p-queue'
-import { HumanMessage, SystemMessage } from '@langchain/core/messages'
+import { registerDefaultLlmProviders } from '@search/lib/llm/providers'
+import { executeWithFallback } from '@search/lib/llm/resilience'
+import type { LlmProviderName, LlmSecrets } from '@search/lib/llm/types'
 import {
   VerseRecord,
   ChapterGraph,
@@ -23,6 +24,8 @@ import { TargetBook } from '@search/types/target-book.type'
 
 const VERSE_ID_RE = /^b\.([A-Z0-9]+)\.(\d+)\.(\d+)$/
 const DEFAULT_BOOKS: TargetBook[] = ['GEN', 'MAT', 'ACT']
+
+registerDefaultLlmProviders()
 
 type JsonRecord = Record<string, unknown>
 type EntityType = z.infer<typeof EntityTypeEnum>
@@ -413,7 +416,6 @@ function normalizeRelationType(input: unknown): RelationType | undefined {
     .replace(/^_+|_+$/g, '')
 
   const aliases: Record<string, RelationType> = {
-    // Movement / French
     ALLER_EN: 'TRAVELS_TO',
     SE_REND_A: 'TRAVELS_TO',
     DESCEND_EN: 'TRAVELS_TO',
@@ -423,18 +425,15 @@ function normalizeRelationType(input: unknown): RelationType | undefined {
     WENT_TO: 'TRAVELS_TO',
     MOVED_TO: 'TRAVELS_TO',
     TRAVELED_TO: 'TRAVELS_TO',
-    // Creation
     CREATES: 'CREATED_BY',
     MADE_BY: 'CREATED_BY',
     CREE_PAR: 'CREATED_BY',
     CREA: 'CREATED_BY',
     BUILT_BY: 'CREATED_BY',
-    // Location
     IS_IN: 'LOCATED_IN',
     SITUATED_IN: 'LOCATED_IN',
     LIVES_IN: 'LOCATED_IN',
     DWELLS_IN: 'LOCATED_IN',
-    // Narrative interactions
     TAKES: 'TAKES_INTO_HOUSE',
     TOOK: 'TAKES_INTO_HOUSE',
     PREND: 'TAKES_INTO_HOUSE',
@@ -445,12 +444,10 @@ function normalizeRelationType(input: unknown): RelationType | undefined {
     SPEAKS_TO: 'INTERACTS_WITH',
     SPOKE_TO: 'INTERACTS_WITH',
     RENCONTRE: 'INTERACTS_WITH',
-    // Mention
     MENTIONED_IN: 'APPEARS_IN',
     FOUND_IN: 'APPEARS_IN',
     PRESENT_IN: 'APPEARS_IN',
     SEEN_IN: 'APPEARS_IN',
-    // Genealogy
     NEPHEW: 'NEPHEW_OF',
     NIECE: 'NIECE_OF',
     SON: 'SON_OF',
@@ -663,12 +660,10 @@ function sanitizeRelations(
     const targetEntity = entityBySlug.get(relation.target_slug)
     if (!sourceEntity || !targetEntity) continue
 
-    // Strategy 1: strict typed endpoints (Person|Location only)
     const sourceType = relation.source_type ?? sourceEntity.type
     const targetType = relation.target_type ?? targetEntity.type
     if (!ENDPOINT_TYPES.has(sourceType) || !ENDPOINT_TYPES.has(targetType)) continue
 
-    // Strategy 1: closed relation list
     if (!STRICT_RELATION_TYPES.has(relation.relation_type as RelationType)) continue
 
     const sourceName = sourceEntity.name || relation.source_slug
@@ -677,7 +672,6 @@ function sanitizeRelations(
     let relType = relation.relation_type
     const evidenceText = verseTextById.get(relation.evidence_verse_id) ?? ''
 
-    // Existing correction + strategy 3 (directionality by justification)
     if (relType === 'FATHER_OF' && isJesusLike(sourceName) && !isJesusLike(targetName)) {
       relType = 'SON_OF'
     }
@@ -689,7 +683,6 @@ function sanitizeRelations(
       relation.justification
     )
 
-    // Strategy 2: metaphoric/circumstantial noise
     if (relType === 'SPOUSE_OF' && (isMetaphoricSpouse(sourceName) || isMetaphoricSpouse(targetName))) {
       continue
     }
@@ -1128,72 +1121,66 @@ export async function runExtractionPipeline(options: RunOptions): Promise<RawGra
   return output
 }
 
-export function createLlamaCppClient(model = 'Llama-3.2'): LlmClient {
-const llamaModel = new ChatOpenAI(model, {
-    temperature: 0,
-    openAIApiKey: 'not-needed',
-    configuration: {
-      baseURL: 'http://localhost:8080/v1',
-      timeout: 120000,
-      defaultHeaders: {
-        'Content-Type': 'application/json'
-      }
-    }
-  } as Omit<ChatOpenAIFields, 'model'>)
-
+function createExtractionRuntimeClient(options: {
+  model?: string
+  providers?: LlmProviderName[]
+  secrets?: LlmSecrets
+}): LlmClient {
   return {
     async invoke(prompt: string): Promise<string> {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const stream = await (llamaModel as any).stream([
-        new SystemMessage(EXTRACTION_SYSTEM_PROMPT),
-        new HumanMessage(prompt)
-      ]);
+      const { result } = await executeWithFallback<string>({
+        clientOptions: {
+          purpose: 'extraction',
+          model: options.model,
+          secrets: options.secrets,
+          timeoutMs: 120000
+        },
+        providers: options.providers,
+        execute: async (client) => {
+          const completion = await client.complete({
+            model: options.model,
+            temperature: 0,
+            messages: [
+              { role: 'system', content: EXTRACTION_SYSTEM_PROMPT },
+              { role: 'user', content: prompt }
+            ]
+          })
 
-      let fullContent = "";
-      for await (const chunk of stream) {
-        fullContent += chunk.content;
-        // Ici, tu pourrais déjà envoyer les morceaux au frontend si besoin
-      }
-      return fullContent;
+          return completion.content
+        }
+      })
+
+      return result
     }
   }
+}
+
+export function createLlamaCppClient(model = 'Llama-3.2'): LlmClient {
+  return createExtractionRuntimeClient({
+    model,
+    providers: ['ollama'],
+    secrets: {
+      ollamaBaseUrl: 'http://localhost:8080/v1',
+      baseUrl: 'http://localhost:8080/v1'
+    }
+  })
 }
 
 export function createCopilotLlmClient(githubToken: string, model = 'gpt-4o'): LlmClient {
-  const copilotModel = new ChatOpenAI(model, {
-    temperature: 0,
-    openAIApiKey: 'none',
-    configuration: {
-      baseURL: 'https://models.github.ai/inference',
-      defaultHeaders: {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${githubToken}`,
-        'X-GitHub-Api-Version': '2022-11-28',
-        'Content-Type': 'application/json'
-      }
+  return createExtractionRuntimeClient({
+    model,
+    providers: ['copilot'],
+    secrets: {
+      githubToken
     }
-  } as Omit<ChatOpenAIFields, 'model'>)
+  })
+}
 
-  return {
-    async invoke(prompt: string): Promise<string> {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (copilotModel as any).invoke([
-        new SystemMessage(EXTRACTION_SYSTEM_PROMPT),
-        new HumanMessage(prompt)
-      ])
-
-      const content = response.content
-      return typeof content === 'string' ? content : JSON.stringify(content)
-    }
-  }
+export function createExtractionLlmClient(model = 'gpt-4o-mini'): LlmClient {
+  return createExtractionRuntimeClient({ model })
 }
 
 export async function main(): Promise<void> {
-  const apiKey = process.env.GITHUB_TOKEN
-  if (!apiKey) {
-    throw new Error('GITHUB_TOKEN is required')
-  }
-
   const inputPath =
     process.env.EXTRACT_INPUT_PATH ??
     path.resolve(process.cwd(), '../data/processed_bible.json')
@@ -1215,7 +1202,7 @@ export async function main(): Promise<void> {
     console.log(`[extract-graph] config: model=${model}, delayMs=${delayMs}ms`)
   }
 
-  const llm = createCopilotLlmClient(apiKey, model);
+  const llm = createExtractionLlmClient(model)
 
   const result = await runExtractionPipeline({
     inputPath,
