@@ -19,6 +19,15 @@ const envSnapshot = {
   COPILOT_MODEL: process.env.COPILOT_MODEL,
 };
 
+function restoreEnv(name: keyof typeof envSnapshot, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[name];
+    return;
+  }
+
+  process.env[name] = value;
+}
+
 function createMockProvider(name: RegisteredLlmProvider["name"]): RegisteredLlmProvider {
   const client: LlmClient = {
     async complete(request) {
@@ -57,15 +66,15 @@ describe("llm factory", () => {
 
   afterEach(() => {
     clearLlmProviderRegistry();
-    process.env.GITHUB_TOKEN = envSnapshot.GITHUB_TOKEN;
-    process.env.OPENAI_API_KEY = envSnapshot.OPENAI_API_KEY;
-    process.env.GEMINI_API_KEY = envSnapshot.GEMINI_API_KEY;
-    process.env.OLLAMA_BASE_URL = envSnapshot.OLLAMA_BASE_URL;
-    process.env.LLM_DEFAULT_PROVIDER = envSnapshot.LLM_DEFAULT_PROVIDER;
-    process.env.QUERY_ROUTER_MODEL = envSnapshot.QUERY_ROUTER_MODEL;
-    process.env.GROUNDED_ANSWER_MODEL = envSnapshot.GROUNDED_ANSWER_MODEL;
-    process.env.COPILOTE_MODEL = envSnapshot.COPILOTE_MODEL;
-    process.env.COPILOT_MODEL = envSnapshot.COPILOT_MODEL;
+    restoreEnv("GITHUB_TOKEN", envSnapshot.GITHUB_TOKEN);
+    restoreEnv("OPENAI_API_KEY", envSnapshot.OPENAI_API_KEY);
+    restoreEnv("GEMINI_API_KEY", envSnapshot.GEMINI_API_KEY);
+    restoreEnv("OLLAMA_BASE_URL", envSnapshot.OLLAMA_BASE_URL);
+    restoreEnv("LLM_DEFAULT_PROVIDER", envSnapshot.LLM_DEFAULT_PROVIDER);
+    restoreEnv("QUERY_ROUTER_MODEL", envSnapshot.QUERY_ROUTER_MODEL);
+    restoreEnv("GROUNDED_ANSWER_MODEL", envSnapshot.GROUNDED_ANSWER_MODEL);
+    restoreEnv("COPILOTE_MODEL", envSnapshot.COPILOTE_MODEL);
+    restoreEnv("COPILOT_MODEL", envSnapshot.COPILOT_MODEL);
   });
 
   it("resolves legacy extraction model aliases", () => {
@@ -135,6 +144,22 @@ describe("llm factory", () => {
     });
 
     expect(response.provider).toBe("gemini");
+  });
+
+  it("infers the provider from explicit secrets when provider is omitted", async () => {
+    registerLlmProvider(createMockProvider("openai"));
+
+    const client = await createLlmClient({
+      purpose: "chat",
+      secrets: { openAIApiKey: "openai-key" },
+      model: "gpt-4o-mini",
+    });
+
+    const response = await client.complete({
+      messages: [{ role: "user", content: "salut" }],
+    });
+
+    expect(response.provider).toBe("openai");
   });
 
   it("throws when no provider adapter is registered", async () => {

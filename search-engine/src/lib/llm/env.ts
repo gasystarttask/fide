@@ -52,16 +52,32 @@ function resolveProviderFromEnv(purpose: LlmPurpose): LlmProviderName | undefine
   );
 }
 
-function inferProviderFromSecrets(): LlmProviderName | undefined {
-  if (process.env.GITHUB_TOKEN?.trim()) return "copilot";
-  if (process.env.OPENAI_API_KEY?.trim()) return "openai";
-  if (process.env.GEMINI_API_KEY?.trim()) return "gemini";
-  if (process.env.OLLAMA_BASE_URL?.trim() || process.env.OLLAMA_MODEL?.trim()) return "ollama";
+function inferProviderFromSecrets(overrides?: LlmSecrets): LlmProviderName | undefined {
+  if (overrides?.githubToken?.trim() || process.env.GITHUB_TOKEN?.trim()) return "copilot";
+  if (overrides?.openAIApiKey?.trim() || overrides?.apiKey?.trim() || process.env.OPENAI_API_KEY?.trim()) {
+    return "openai";
+  }
+  if (overrides?.geminiApiKey?.trim() || overrides?.apiKey?.trim() || process.env.GEMINI_API_KEY?.trim()) {
+    return "gemini";
+  }
+  if (
+    overrides?.ollamaBaseUrl?.trim() ||
+    overrides?.baseUrl?.trim() ||
+    process.env.OLLAMA_BASE_URL?.trim() ||
+    process.env.OLLAMA_MODEL?.trim()
+  ) {
+    return "ollama";
+  }
   return undefined;
 }
 
 export function resolveLlmProvider(options: LlmClientOptions): LlmProviderName {
-  return options.provider ?? resolveProviderFromEnv(options.purpose) ?? inferProviderFromSecrets() ?? "copilot";
+  return (
+    options.provider ??
+    resolveProviderFromEnv(options.purpose) ??
+    inferProviderFromSecrets(options.secrets) ??
+    "copilot"
+  );
 }
 
 export function resolveLlmSecrets(provider: LlmProviderName, overrides?: LlmSecrets): LlmSecrets {
