@@ -18,6 +18,9 @@ const CHAT_EXECUTION_TIMEOUT_MS = Number(process.env.LLM_CHAT_EXEC_TIMEOUT_MS ??
 
 registerDefaultLlmProviders();
 
+const PERF_TRACE_ENABLED =
+  process.env.LLM_PERF_TRACE === "true" || process.env.NODE_ENV !== "production";
+
 type ChatPart = { type?: string; text?: string };
 type ChatMessage = {
   role?: string;
@@ -138,7 +141,16 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): 
   ]);
 }
 
+function logPerf(event: string, payload: Record<string, unknown>): void {
+  if (!PERF_TRACE_ENABLED) {
+    return;
+  }
+
+  console.info(`[perf][chat][${event}]`, payload);
+}
+
 export async function POST(req: NextRequest): Promise<Response> {
+  const requestStartedAt = Date.now();
   const traceId = `chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   const rateLimitResult = rateLimit(req);
   if (!rateLimitResult.success) {
@@ -181,7 +193,9 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   try {
     console.info("[chat][trace] start", { traceId, query });
+    const routeStartedAt = Date.now();
     const routing = await routeQuery({ query });
+    const routeLatencyMs = Date.now() - routeStartedAt;
     console.info("[chat][trace] routed", {
       traceId,
       intent: routing.intent,
@@ -190,6 +204,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       graphWeight: routing.graphWeight,
       bm25Weight: routing.bm25Weight,
     });
+    const retrievalStartedAt = Date.now();
     const db = await getDb();
     const retriever = new HybridRetriever(db);
     const retrievalResult = await retriever.retrieve(
@@ -198,8 +213,10 @@ export async function POST(req: NextRequest): Promise<Response> {
       routing.vectorWeight,
       routing.graphWeight,
       0,
-      routing.filters
+      routing.filters,
+      routing.bm25Weight
     );
+    const retrievalLatencyMs = Date.now() - retrievalStartedAt;
 
     const context = assembleHybridContext(retrievalResult.verses, retrievalResult.entityFacts);
     console.info("[chat][trace] retrieved", {
@@ -208,6 +225,15 @@ export async function POST(req: NextRequest): Promise<Response> {
       entityFacts: retrievalResult.entityFacts.length,
       references: context.references.length,
     });
+    logPerf("pre-stream", {
+      traceId,
+      query,
+      routeLatencyMs,
+      retrievalLatencyMs,
+      totalPreStreamLatencyMs: Date.now() - requestStartedAt,
+      verses: retrievalResult.verses.length,
+      entityFacts: retrievalResult.entityFacts.length,
+    });
     if (!context.references.length) {
       return createStaticAssistantResponse(UNKNOWN_RESPONSE);
     }
@@ -215,6 +241,12 @@ export async function POST(req: NextRequest): Promise<Response> {
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
         const textId = "chat-response";
+        const streamStartedAt = Date.now();
+        let firstTokenLatencyMs: number | null = null;
+        let tokenEventCount = 0;
+        let selectedProvider: string | null = null;
+        let selectedModel: string | null = null;
+        let failoverCount = 0;
         console.info("[chat][trace] stream-execute", { traceId, textId });
 
         writer.write({ type: "text-start", id: textId });
@@ -223,12 +255,12 @@ export async function POST(req: NextRequest): Promise<Response> {
             ? CHAT_EXECUTION_TIMEOUT_MS
             : 35000;
 
-          await withTimeout(executeWithFallback({
+          const execution = await withTimeout(executeWithFallback({
             clientOptions: {
               purpose: "chat",
               timeoutMs: Number.isFinite(CHAT_TIMEOUT_MS) && CHAT_TIMEOUT_MS > 0 ? CHAT_TIMEOUT_MS : 30000,
             },
-            execute: async (client) => {
+            execute: async (client, provider) => {
               if (client.stream) {
                 for await (const token of client.stream({
                   temperature: 0,
@@ -245,9 +277,17 @@ export async function POST(req: NextRequest): Promise<Response> {
                     },
                   ],
                 })) {
+                  if (firstTokenLatencyMs == null) {
+                    firstTokenLatencyMs = Date.now() - streamStartedAt;
+                  }
+                  tokenEventCount += 1;
                   writer.write({ type: "text-delta", id: textId, delta: token });
                 }
-                return;
+                return {
+                  mode: "stream" as const,
+                  provider,
+                  model: null,
+                };
               }
 
               const response = await client.complete({
@@ -267,11 +307,46 @@ export async function POST(req: NextRequest): Promise<Response> {
               });
 
               if (response.content) {
+                if (firstTokenLatencyMs == null) {
+                  firstTokenLatencyMs = Date.now() - streamStartedAt;
+                }
+                tokenEventCount += 1;
                 writer.write({ type: "text-delta", id: textId, delta: response.content });
               }
+
+              return {
+                mode: "complete" as const,
+                provider,
+                model: response.model ?? null,
+              };
             },
           }), executionTimeoutMs, "Chat execution");
+
+          selectedProvider = execution.provider;
+          selectedModel = execution.result.model;
+          failoverCount = execution.failovers.length;
+          logPerf("provider", {
+            traceId,
+            query,
+            provider: selectedProvider,
+            model: selectedModel,
+            mode: execution.result.mode,
+            failoverCount,
+            firstTokenLatencyMs,
+            totalGenerationLatencyMs: Date.now() - streamStartedAt,
+            tokenEventCount,
+          });
         } finally {
+          logPerf("stream", {
+            traceId,
+            query,
+            firstTokenLatencyMs,
+            totalStreamLatencyMs: Date.now() - streamStartedAt,
+            provider: selectedProvider,
+            model: selectedModel,
+            failoverCount,
+            tokenEventCount,
+          });
           writer.write({ type: "text-end", id: textId });
         }
       },

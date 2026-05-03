@@ -4,6 +4,17 @@ import type { HybridFilters, QueryIntent } from "@search/types/hybrid";
 
 registerDefaultLlmProviders();
 
+const PERF_TRACE_ENABLED =
+  process.env.LLM_PERF_TRACE === "true" || process.env.NODE_ENV !== "production";
+
+function logPerf(event: string, payload: Record<string, unknown>): void {
+  if (!PERF_TRACE_ENABLED) {
+    return;
+  }
+
+  console.info(`[perf][query-router][${event}]`, payload);
+}
+
 type RouterDecisionShape = {
   intent: QueryIntent;
   vectorWeight: number;
@@ -33,6 +44,22 @@ export interface QueryRouterInput {
 
 const ROUTER_MODEL = process.env.QUERY_ROUTER_MODEL ?? "gpt-4o-mini";
 const ROUTER_TIMEOUT_MS = 450;
+const ROUTE_CACHE_TTL_MS = 60 * 1000;
+
+type RouteCacheEntry = {
+  value: QueryRoutingDecision;
+  expiresAt: number;
+};
+
+declare global {
+  var __queryRouterCache: Map<string, RouteCacheEntry> | undefined;
+  var __queryRouterInFlight: Map<string, Promise<QueryRoutingDecision>> | undefined;
+}
+
+const routeCache = global.__queryRouterCache ?? (global.__queryRouterCache = new Map<string, RouteCacheEntry>());
+const routeInFlight =
+  global.__queryRouterInFlight ??
+  (global.__queryRouterInFlight = new Map<string, Promise<QueryRoutingDecision>>());
 
 const LSG_BOOK_NAMES: Record<string, string> = {
   Genesis: "Genèse",
@@ -197,6 +224,31 @@ function normalizeText(input: string): string {
     .trim();
 }
 
+function nowMs(): number {
+  return Date.now();
+}
+
+function getRouteCacheValue(key: string): QueryRoutingDecision | undefined {
+  const cached = routeCache.get(key);
+  if (!cached) {
+    return undefined;
+  }
+
+  if (cached.expiresAt <= nowMs()) {
+    routeCache.delete(key);
+    return undefined;
+  }
+
+  return cached.value;
+}
+
+function setRouteCacheValue(key: string, value: QueryRoutingDecision): void {
+  routeCache.set(key, {
+    value,
+    expiresAt: nowMs() + ROUTE_CACHE_TTL_MS,
+  });
+}
+
 function toLsgBookName(input?: string): string | undefined {
   if (!input) return undefined;
 
@@ -281,6 +333,23 @@ function heuristicIntent(query: string): QueryIntent {
 function isDirectKinshipQuestion(query: string): boolean {
   const q = normalizeText(query);
   return /(qui est .*fils de|qui est .*fille de|who is .*son of|who is .*daughter of|fils de|daughter of|son of)/i.test(q);
+}
+
+function isDirectEntityLookupQuestion(query: string): boolean {
+  const q = normalizeText(query);
+  return /^(qui est|who is|parle moi de|tell me about)\s+[a-z0-9][a-z0-9\s'’.-]*\??$/i.test(q);
+}
+
+function shouldUseHeuristicFastPath(query: string, fallback: QueryRoutingDecision): boolean {
+  if (fallback.intent !== "GENERAL") {
+    return true;
+  }
+
+  if (fallback.filters?.book || fallback.filters?.testament) {
+    return true;
+  }
+
+  return isDirectEntityLookupQuestion(query);
 }
 
 function heuristicRoute(query: string): QueryRoutingDecision {
@@ -369,10 +438,55 @@ async function llmRoute(query: string, timeoutMs: number): Promise<QueryRoutingD
 }
 
 export async function routeQuery(input: QueryRouterInput): Promise<QueryRoutingDecision> {
+  const startedAt = Date.now();
   const query = input.query.trim();
+  const cacheKey = normalizeText(query);
   const timeoutMs = input.timeoutMs ?? ROUTER_TIMEOUT_MS;
   const fallback = heuristicRoute(query);
-  const routed = (await llmRoute(query, timeoutMs)) ?? fallback;
+  let routed = getRouteCacheValue(cacheKey);
+  let llmLatencyMs = 0;
+  let usedLlmResult = false;
+  let heuristicFastPath = false;
+  let cacheStatus: "hit" | "shared" | "miss" = "miss";
+
+  if (!routed) {
+    const inFlight = routeInFlight.get(cacheKey);
+    if (inFlight) {
+      cacheStatus = "shared";
+      routed = await inFlight;
+    } else {
+      const routePromise = (async () => {
+        const useHeuristicFastPath = shouldUseHeuristicFastPath(query, fallback);
+        const llmStartedAt = useHeuristicFastPath ? 0 : Date.now();
+        const llmResult = useHeuristicFastPath ? null : await llmRoute(query, timeoutMs);
+        const nextRouted = llmResult ?? fallback;
+
+        llmLatencyMs = useHeuristicFastPath ? 0 : Date.now() - llmStartedAt;
+        usedLlmResult = Boolean(llmResult);
+        heuristicFastPath = useHeuristicFastPath;
+
+        setRouteCacheValue(cacheKey, nextRouted);
+        return nextRouted;
+      })();
+
+      routeInFlight.set(cacheKey, routePromise);
+      try {
+        routed = await routePromise;
+      } finally {
+        routeInFlight.delete(cacheKey);
+      }
+    }
+  } else {
+    cacheStatus = "hit";
+  }
+
+  if (!routed) {
+    routed = fallback;
+  }
+
+  if (cacheStatus !== "miss") {
+    heuristicFastPath = routed.source === "heuristic" && shouldUseHeuristicFastPath(query, fallback);
+  }
 
   const mergedK = input.requested?.k ?? routed.k;
   const mergedFilters = {
@@ -395,7 +509,7 @@ export async function routeQuery(input: QueryRouterInput): Promise<QueryRoutingD
       ? { vectorWeight: 0.68, graphWeight: 0.17, bm25Weight: 0.15 }
       : mergedWeights;
 
-  return {
+  const decision = {
     ...routed,
     ...finalWeights,
     k: clampInt(mergedK, 1, 20),
@@ -409,4 +523,17 @@ export async function routeQuery(input: QueryRouterInput): Promise<QueryRoutingD
         ? `${routed.reasoning} Request overrides were applied.`
         : routed.reasoning,
   };
+
+  logPerf("decision", {
+    query,
+    source: decision.source,
+    intent: decision.intent,
+    totalLatencyMs: Date.now() - startedAt,
+    llmLatencyMs,
+    heuristicFastPath,
+    usedLlmResult,
+    cacheStatus,
+  });
+
+  return decision;
 }
