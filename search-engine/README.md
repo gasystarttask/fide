@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Search Engine
+
+Next.js search and chat application for the Bible RAG + knowledge-graph stack.
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies and start the app:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The app runs on http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Copy `env.example` to `.env.local` and set at least one runtime provider:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `GITHUB_TOKEN` for GitHub Models / Copilot
+- `OPENAI_API_KEY` for OpenAI
+- `GEMINI_API_KEY` for Gemini
+- `OLLAMA_BASE_URL` for a local OpenAI-compatible endpoint such as Ollama
 
-## Learn More
+The runtime provider factory supports per-surface selection and fallback via env vars:
 
-To learn more about Next.js, take a look at the following resources:
+- `LLM_DEFAULT_PROVIDER`
+- `LLM_CHAT_PROVIDER`
+- `LLM_ROUTER_PROVIDER`
+- `LLM_GROUNDED_ANSWER_PROVIDER`
+- `LLM_EXTRACTION_PROVIDER`
+- `LLM_FALLBACK_ORDER_CHAT`
+- `LLM_FALLBACK_ORDER_ROUTER`
+- `LLM_FALLBACK_ORDER_GROUNDED_ANSWER`
+- `LLM_FALLBACK_ORDER_EXTRACTION`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Model overrides are available through `LLM_CHAT_MODEL`, `LLM_ROUTER_MODEL`, `LLM_GROUNDED_ANSWER_MODEL`, and `LLM_EXTRACTION_MODEL`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Validation
 
-## Deploy on Vercel
+```bash
+npm run test:run
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Notes
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Embeddings still use `OPENAI_API_KEY`.
+- Chat responses must stay in AI SDK UI-message stream format.
+- Extraction scripts use the same provider factory and fallback policy as runtime paths.
