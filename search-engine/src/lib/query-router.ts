@@ -1,16 +1,8 @@
-import OpenAI from "openai";
+import { registerDefaultLlmProviders } from "@search/lib/llm/providers";
+import { executeWithFallback } from "@search/lib/llm/resilience";
 import type { HybridFilters, QueryIntent } from "@search/types/hybrid";
 
-function createCopilotClient(): OpenAI {
-  return new OpenAI({
-    apiKey: process.env.GITHUB_TOKEN ?? "none",
-    baseURL: "https://models.github.ai/inference",
-    defaultHeaders: {
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-    },
-  });
-}
+registerDefaultLlmProviders();
 
 type RouterDecisionShape = {
   intent: QueryIntent;
@@ -314,43 +306,33 @@ function heuristicRoute(query: string): QueryRoutingDecision {
 }
 
 async function llmRoute(query: string, timeoutMs: number): Promise<QueryRoutingDecision | null> {
-  if (!process.env.GITHUB_TOKEN) {
-    return null;
-  }
-
-  const openai = createCopilotClient();
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const startedAt = Date.now();
 
   try {
-    const completion = await openai.chat.completions.create(
-      {
+    const { result: parsed } = await executeWithFallback<Partial<RouterDecisionShape>>({
+      clientOptions: {
+        purpose: "router",
         model: ROUTER_MODEL,
-        temperature: 0,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are a multilingual (English/French) query router for Bible retrieval. Return only JSON with this schema: { intent, vectorWeight, graphWeight, bm25Weight, k, filters: { testament?, book? }, reasoning }. intent must be one of THEOLOGY, GENEALOGY, GEOGRAPHY, CHRONOLOGY, GENERAL. Canonicalize book names to LSG French names (e.g., Genese -> Genèse, Matthew -> Matthieu). Prefer French testament labels (Ancien Testament / Nouveau Testament). Ensure vectorWeight + graphWeight + bm25Weight ~= 1. Keep reasoning under 160 chars.",
-          },
-          {
-            role: "user",
-            content: query,
-          },
-        ],
+        timeoutMs,
       },
-      { signal: controller.signal }
-    );
+      execute: (client) =>
+        client.completeJson?.<Partial<RouterDecisionShape>>({
+          model: ROUTER_MODEL,
+          temperature: 0,
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are a multilingual (English/French) query router for Bible retrieval. Return only JSON with this schema: { intent, vectorWeight, graphWeight, bm25Weight, k, filters: { testament?, book? }, reasoning }. intent must be one of THEOLOGY, GENEALOGY, GEOGRAPHY, CHRONOLOGY, GENERAL. Canonicalize book names to LSG French names (e.g., Genese -> Genèse, Matthew -> Matthieu). Prefer French testament labels (Ancien Testament / Nouveau Testament). Ensure vectorWeight + graphWeight + bm25Weight ~= 1. Keep reasoning under 160 chars.",
+            },
+            {
+              role: "user",
+              content: query,
+            },
+          ],
+        }) ?? Promise.reject(new Error("Provider does not support JSON completion.")),
+    });
 
-    const content = completion.choices[0]?.message?.content;
-    if (!content) {
-      return null;
-    }
-
-    const parsed = JSON.parse(content) as Partial<RouterDecisionShape>;
     if (!parsed.intent || !(parsed.intent in INTENT_CONFIG)) {
       return null;
     }
@@ -383,8 +365,6 @@ async function llmRoute(query: string, timeoutMs: number): Promise<QueryRoutingD
     };
   } catch {
     return null;
-  } finally {
-    clearTimeout(timeout);
   }
 }
 

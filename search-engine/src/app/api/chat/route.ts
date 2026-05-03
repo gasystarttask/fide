@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createUIMessageStream, createUIMessageStreamResponse, streamText } from "ai";
+import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import { HybridRetriever } from "@search/lib/hybrid-retriever";
 import { getDb } from "@search/lib/mongodb";
+import { registerDefaultLlmProviders } from "@search/lib/llm/providers";
+import { executeWithFallback } from "@search/lib/llm/resilience";
 import { rateLimit } from "@search/lib/rate-limit";
 import { routeQuery } from "@search/lib/query-router";
 import {
@@ -14,31 +15,7 @@ import {
 const UNKNOWN_RESPONSE = "Je ne sais pas d'après les Écritures fournies.";
 const DEFAULT_MODEL = process.env.GROUNDED_ANSWER_MODEL ?? "gpt-4o-mini";
 
-// Custom fetch wrapper to add GitHub authentication headers
-const customFetch = (
-  input: string | Request | URL,
-  options?: RequestInit
-): Promise<Response> => {
-  const token = process.env.GITHUB_TOKEN;
-  const headers = new Headers(options?.headers || {});
-  
-  // Ensure Authorization header is set
-  if (token && !headers.has("Authorization")) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
-  
-  // Add GitHub-specific headers
-  headers.set("Accept", "application/vnd.github+json");
-  headers.set("X-GitHub-Api-Version", "2022-11-28");
-  
-  return fetch(input, { ...options, headers });
-};
-
-const github = createOpenAI({
-  apiKey: process.env.GITHUB_TOKEN,
-  baseURL: "https://models.github.ai/inference",
-  fetch: customFetch,
-});
+registerDefaultLlmProviders();
 
 type ChatPart = { type?: string; text?: string };
 type ChatMessage = {
@@ -160,9 +137,14 @@ export async function POST(req: NextRequest): Promise<Response> {
     );
   }
 
-  if (!process.env.GITHUB_TOKEN) {
+  if (
+    !process.env.GITHUB_TOKEN &&
+    !process.env.OPENAI_API_KEY &&
+    !process.env.GEMINI_API_KEY &&
+    !process.env.OLLAMA_BASE_URL
+  ) {
     return NextResponse.json(
-      { error: "Server misconfiguration: missing GITHUB_TOKEN." },
+      { error: "Server misconfiguration: no LLM provider credentials configured." },
       { status: 500 }
     );
   }
@@ -204,20 +186,70 @@ export async function POST(req: NextRequest): Promise<Response> {
       return createStaticAssistantResponse(UNKNOWN_RESPONSE);
     }
 
-    const result = streamText({
-      model: github.chat(DEFAULT_MODEL),
-      temperature: 0,
-      maxRetries: 0,
-      system: buildGroundedStreamingSystemPrompt(),
-      prompt: [
-        `Question: ${query}`,
-        "",
-        "Context:",
-        context.text,
-      ].join("\n"),
+    const stream = createUIMessageStream({
+      execute: async ({ writer }) => {
+        const textId = "chat-response";
+
+        writer.write({ type: "text-start", id: textId });
+        try {
+          await executeWithFallback({
+            clientOptions: {
+              purpose: "chat",
+              model: DEFAULT_MODEL,
+            },
+            execute: async (client) => {
+              if (client.stream) {
+                for await (const token of client.stream({
+                  model: DEFAULT_MODEL,
+                  temperature: 0,
+                  messages: [
+                    { role: "system", content: buildGroundedStreamingSystemPrompt() },
+                    {
+                      role: "user",
+                      content: [
+                        `Question: ${query}`,
+                        "",
+                        "Context:",
+                        context.text,
+                      ].join("\n"),
+                    },
+                  ],
+                })) {
+                  writer.write({ type: "text-delta", id: textId, delta: token });
+                }
+                return;
+              }
+
+              const response = await client.complete({
+                model: DEFAULT_MODEL,
+                temperature: 0,
+                messages: [
+                  { role: "system", content: buildGroundedStreamingSystemPrompt() },
+                  {
+                    role: "user",
+                    content: [
+                      `Question: ${query}`,
+                      "",
+                      "Context:",
+                      context.text,
+                    ].join("\n"),
+                  },
+                ],
+              });
+
+              if (response.content) {
+                writer.write({ type: "text-delta", id: textId, delta: response.content });
+              }
+            },
+          });
+        } finally {
+          writer.write({ type: "text-end", id: textId });
+        }
+      },
     });
 
-    return result.toUIMessageStreamResponse({
+    return createUIMessageStreamResponse({
+      stream,
       headers: {
         "Cache-Control": "no-cache, no-transform",
       },

@@ -1,16 +1,8 @@
-import OpenAI from "openai";
+import { registerDefaultLlmProviders } from "@search/lib/llm/providers";
+import { executeWithFallback } from "@search/lib/llm/resilience";
 import type { EntityFact, VerseResult } from "@search/types/hybrid";
 
-function createCopilotClient(): OpenAI {
-  return new OpenAI({
-    apiKey: process.env.GITHUB_TOKEN ?? "none",
-    baseURL: "https://models.github.ai/inference",
-    defaultHeaders: {
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-    },
-  });
-}
+registerDefaultLlmProviders();
 
 const DEFAULT_MODEL = process.env.GROUNDED_ANSWER_MODEL ?? "gpt-4o-mini";
 const UNKNOWN_RESPONSE = "Je ne sais pas d'après les Écritures fournies.";
@@ -167,16 +159,6 @@ export async function generateGroundedAnswerStream(input: StreamGroundedAnswerIn
     };
   }
 
-  if (!process.env.GITHUB_TOKEN) {
-    return {
-      answer: UNKNOWN_RESPONSE,
-      citations: [],
-      uncertain: true,
-      model,
-      promptVersion: PROMPT_VERSION,
-    };
-  }
-
   const context = assembleHybridContext(input.verses, input.entityFacts);
 
   if (!context.references.length) {
@@ -189,34 +171,59 @@ export async function generateGroundedAnswerStream(input: StreamGroundedAnswerIn
     };
   }
 
-  const openai = createCopilotClient();
-
   try {
-    const stream = await openai.chat.completions.create({
-      model,
-      temperature: 0,
-      stream: true,
-      messages: [
-        { role: "system", content: buildGroundedStreamingSystemPrompt() },
-        {
-          role: "user",
-          content: [
-            `Question: ${input.query}`,
-            "",
-            "Context:",
-            context.text,
-          ].join("\n"),
-        },
-      ],
-    });
-
     let answer = "";
-    for await (const chunk of stream) {
-      const token = chunk.choices[0]?.delta?.content;
-      if (!token) continue;
-      answer += token;
-      input.onToken(token);
-    }
+    await executeWithFallback({
+      clientOptions: {
+        purpose: "grounded-answer",
+        model,
+      },
+      execute: async (client) => {
+        if (client.stream) {
+          for await (const token of client.stream({
+            model,
+            temperature: 0,
+            messages: [
+              { role: "system", content: buildGroundedStreamingSystemPrompt() },
+              {
+                role: "user",
+                content: [
+                  `Question: ${input.query}`,
+                  "",
+                  "Context:",
+                  context.text,
+                ].join("\n"),
+              },
+            ],
+          })) {
+            answer += token;
+            input.onToken(token);
+          }
+          return answer;
+        }
+
+        const response = await client.complete({
+          model,
+          temperature: 0,
+          messages: [
+            { role: "system", content: buildGroundedStreamingSystemPrompt() },
+            {
+              role: "user",
+              content: [
+                `Question: ${input.query}`,
+                "",
+                "Context:",
+                context.text,
+              ].join("\n"),
+            },
+          ],
+        });
+
+        answer = response.content;
+        if (answer) input.onToken(answer);
+        return answer;
+      },
+    });
 
     const cleaned = answer.trim() || UNKNOWN_RESPONSE;
     const citations = extractCitations(cleaned);
@@ -269,16 +276,6 @@ export async function generateGroundedAnswer(input: {
     };
   }
 
-  if (!process.env.GITHUB_TOKEN) {
-    return {
-      answer: UNKNOWN_RESPONSE,
-      citations: [],
-      uncertain: true,
-      model,
-      promptVersion: PROMPT_VERSION,
-    };
-  }
-
   const context = assembleHybridContext(input.verses, input.entityFacts);
 
   if (!context.references.length) {
@@ -291,29 +288,32 @@ export async function generateGroundedAnswer(input: {
     };
   }
 
-  const openai = createCopilotClient();
-
   try {
-    const completion = await openai.chat.completions.create({
-      model,
-      temperature: 0,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: buildGroundedSystemPrompt() },
-        {
-          role: "user",
-          content: [
-            `Question: ${input.query}`,
-            "",
-            "Context:",
-            context.text,
-          ].join("\n"),
-        },
-      ],
+    const { result: parsed } = await executeWithFallback<{ answer?: string; usedReferences?: string[] }>({
+      clientOptions: {
+        purpose: "grounded-answer",
+        model,
+      },
+      execute: (client) =>
+        client.completeJson?.<{ answer?: string; usedReferences?: string[] }>({
+          model,
+          temperature: 0,
+          messages: [
+            { role: "system", content: buildGroundedSystemPrompt() },
+            {
+              role: "user",
+              content: [
+                `Question: ${input.query}`,
+                "",
+                "Context:",
+                context.text,
+              ].join("\n"),
+            },
+          ],
+        }) ?? Promise.reject(new Error("Provider does not support JSON completion.")),
     });
 
-    const content = completion.choices[0]?.message?.content;
-    if (!content) {
+    if (!parsed) {
       return {
         answer: UNKNOWN_RESPONSE,
         citations: [],
@@ -323,7 +323,6 @@ export async function generateGroundedAnswer(input: {
       };
     }
 
-    const parsed = JSON.parse(content) as { answer?: string; usedReferences?: string[] };
     const answer = parsed.answer?.trim() || UNKNOWN_RESPONSE;
     const inlineCitations = extractCitations(answer);
     const references = (parsed.usedReferences ?? []).filter(Boolean);
