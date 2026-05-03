@@ -126,4 +126,25 @@ describe("llm resilience", () => {
       })
     ).rejects.toThrow("provider unavailable");
   });
+
+  it("does not fail over on unknown non-retriable errors", async () => {
+    registerLlmProvider(
+      createProvider("copilot", async () => {
+        throw new Error("missing prompt template");
+      })
+    );
+    registerLlmProvider(createProvider("openai", async () => "should not run"));
+
+    await expect(
+      executeWithFallback({
+        clientOptions: {
+          purpose: "chat",
+          model: "gpt-4o-mini",
+          secrets: { githubToken: "github-token", openAIApiKey: "openai-key" },
+        },
+        providers: ["copilot", "openai"],
+        execute: async (client) => (await client.complete({ messages: [{ role: "user", content: "hello" }] })).content,
+      })
+    ).rejects.toThrow("missing prompt template");
+  });
 });

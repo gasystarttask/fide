@@ -137,6 +137,11 @@ export async function executeWithFallback<T>(
     } catch (error) {
       lastError = error;
       const errorType = classifyLlmError(error);
+
+      if (errorType === "unknown") {
+        throw error;
+      }
+
       recordProviderFailure(
         provider,
         options.failureThreshold ?? DEFAULT_FAILURE_THRESHOLD,
@@ -148,10 +153,6 @@ export async function executeWithFallback<T>(
         const event = { from: provider, to: nextProvider, errorType };
         failovers.push(event);
         options.onFallback?.(event);
-      }
-
-      if (errorType === "unknown" && !nextProvider) {
-        throw error;
       }
     }
   }
