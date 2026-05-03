@@ -3,10 +3,11 @@ WORKDIR /app
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NPM_CONFIG_UPDATE_NOTIFIER=false
+ENV NPM_CONFIG_LEGACY_PEER_DEPS=true
 
 RUN apk upgrade --no-cache
 
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 
 
