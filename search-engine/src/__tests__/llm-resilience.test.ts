@@ -57,6 +57,13 @@ describe("llm resilience", () => {
     expect(resolveProviderOrder("chat")).toEqual(["openai", "gemini", "ollama"]);
   });
 
+  it("defaults to Gemini-first fallback order for supported workloads", () => {
+    expect(resolveProviderOrder("chat")).toEqual(["gemini", "openai", "copilot", "ollama"]);
+    expect(resolveProviderOrder("router")).toEqual(["gemini", "openai", "copilot", "ollama"]);
+    expect(resolveProviderOrder("grounded-answer")).toEqual(["gemini", "openai", "copilot", "ollama"]);
+    expect(resolveProviderOrder("extraction")).toEqual(["gemini", "openai", "copilot", "ollama"]);
+  });
+
   it("classifies upstream rate-limit errors", () => {
     expect(classifyLlmError({ statusCode: 429 })).toBe("rate-limit");
     expect(classifyLlmError(new Error("Too many requests from upstream"))).toBe("rate-limit");

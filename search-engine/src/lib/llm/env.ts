@@ -23,7 +23,7 @@ const PURPOSE_MODEL_ENV_KEYS: Record<LlmPurpose, string[]> = {
 const PROVIDER_DEFAULT_MODELS: Record<LlmProviderName, string> = {
   copilot: "gpt-4o-mini",
   openai: "gpt-4o-mini",
-  gemini: "gemini-2.0-flash",
+  gemini: "gemini-2.5-flash",
   ollama: "llama3.2",
 };
 
@@ -76,7 +76,7 @@ export function resolveLlmProvider(options: LlmClientOptions): LlmProviderName {
     options.provider ??
     resolveProviderFromEnv(options.purpose) ??
     inferProviderFromSecrets(options.secrets) ??
-    "copilot"
+    "gemini"
   );
 }
 

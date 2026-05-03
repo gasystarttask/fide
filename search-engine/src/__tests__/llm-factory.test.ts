@@ -146,6 +146,17 @@ describe("llm factory", () => {
     expect(response.provider).toBe("gemini");
   });
 
+  it("defaults to Gemini 2.5 when provider and model are omitted", () => {
+    process.env.GEMINI_API_KEY = "gemini-key";
+
+    const resolved = resolveAndValidateLlmClientOptions({
+      purpose: "chat",
+    });
+
+    expect(resolved.provider).toBe("gemini");
+    expect(resolved.model).toBe("gemini-2.5-flash");
+  });
+
   it("infers the provider from explicit secrets when provider is omitted", async () => {
     registerLlmProvider(createMockProvider("openai"));
 

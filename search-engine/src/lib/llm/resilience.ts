@@ -5,10 +5,10 @@ const DEFAULT_FAILURE_THRESHOLD = 3;
 const DEFAULT_COOLDOWN_MS = 5 * 60 * 1000;
 
 const DEFAULT_PROVIDER_ORDER: Record<LlmPurpose, LlmProviderName[]> = {
-  chat: ["copilot", "openai", "gemini", "ollama"],
-  router: ["copilot", "openai", "ollama"],
-  "grounded-answer": ["copilot", "openai", "gemini", "ollama"],
-  extraction: ["copilot", "openai", "ollama"],
+  chat: ["gemini", "openai", "copilot", "ollama"],
+  router: ["gemini", "openai", "copilot", "ollama"],
+  "grounded-answer": ["gemini", "openai", "copilot", "ollama"],
+  extraction: ["gemini", "openai", "copilot", "ollama"],
 };
 
 type CircuitState = {
