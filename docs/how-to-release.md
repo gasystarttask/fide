@@ -83,10 +83,17 @@ After the workflow succeeds:
 ```bash
 docker pull ghcr.io/<owner>/bible-chat-scholar:v1.2.0
 docker run --rm -p 3000:3000 \
+  -e LLM_DEFAULT_PROVIDER=openai \
   -e OPENAI_API_KEY=<key> \
   -e DATABASE_URL=<uri> \
   ghcr.io/<owner>/bible-chat-scholar:v1.2.0
 ```
+
+For GitHub Models, Gemini, or Ollama smoke tests, swap the provider envs accordingly:
+
+- GitHub Models: `LLM_DEFAULT_PROVIDER=copilot` and `GITHUB_TOKEN=<token>`
+- Gemini: `LLM_DEFAULT_PROVIDER=gemini` and `GEMINI_API_KEY=<key>`
+- Ollama: `LLM_DEFAULT_PROVIDER=ollama` and `OLLAMA_BASE_URL=http://host:11434/v1`
 
 ## Hotfix release (PATCH on a previous version)
 

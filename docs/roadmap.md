@@ -31,7 +31,9 @@ This roadmap outlines the development of a semantic search and chat engine for t
 - ✅ **Hybrid Retriever** (Combining Vector Search + Graph Traversal) `done` — Adaptive fanout, RRF fusion, entity enrichment
 - ✅ **Agentic Router** (US-009: Logic to decide between semantic search or genealogy graph) `done` — Intent classification, kinship fast profile, French LSG support
 - ✅ **Context Injection** (US-010: System prompts for theological accuracy and sourcing) `done` — Grounded answers, citation validation, anti-hallucination
-- ✅ **Streaming API Handlers** (US-011: Real-time token streaming with SSE) `done` — Native NextResponse stream + GitHub Models (OpenAI SDK)
+- ✅ **Streaming API Handlers** (US-011: Real-time token streaming with SSE) `done` — AI SDK UI-message streams backed by provider factory + fallback executor
+
+- ✅ **LLM Provider Factory Rollout** `done` — Runtime routing, grounded answers, chat streaming, and extraction scripts now share Copilot/OpenAI/Gemini/Ollama selection and fallback policy
 
 ---
 
