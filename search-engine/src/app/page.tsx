@@ -12,6 +12,7 @@ import { COPY, LOCALE_STORAGE_KEY, resolveLocale } from "./services/localization
 import { parseRetryAfterSeconds, extractRetryAfterFromMessage } from "./services/rateLimitParser";
 import { getMessageText, renderMessageWithCitations } from "./services/messageFormatting";
 import { buildRelationSnippets } from "./services/relationSnippets";
+import { extractGraphEntityQuery } from "./services/graphQuery";
 
 export default function Home() {
   const [locale, setLocale] = useState<Locale>("en");
@@ -117,18 +118,29 @@ export default function Home() {
     setGraphError(null);
 
     try {
-      const res = await fetch("/api/hybrid-search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
-      });
+      const runGraphSearch = async (searchQuery: string) => {
+        const res = await fetch("/api/hybrid-search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: searchQuery }),
+        });
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.error ?? uiText.graphLoadError);
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body?.error ?? uiText.graphLoadError);
+        }
+
+        return (await res.json()) as HybridSearchResponse;
+      };
+
+      let body = await runGraphSearch(query);
+      if (!Array.isArray(body.entityFacts) || body.entityFacts.length === 0) {
+        const fallbackQuery = extractGraphEntityQuery(query);
+        if (fallbackQuery && fallbackQuery.toLowerCase() !== query.trim().toLowerCase()) {
+          body = await runGraphSearch(fallbackQuery);
+        }
       }
 
-      const body = (await res.json()) as HybridSearchResponse;
       setEntityFacts(Array.isArray(body.entityFacts) ? body.entityFacts.slice(0, 10) : []);
     } catch (e) {
       const message = e instanceof Error ? e.message : uiText.unknownError;
@@ -169,9 +181,8 @@ export default function Home() {
     if (!trimmed || !canSubmit) return;
 
     setDraft("");
-    const graphPromise = loadGraphPreview(trimmed);
+    void loadGraphPreview(trimmed);
     await sendMessage({ text: trimmed });
-    await graphPromise;
   }
 
   async function onEntityChipClick(entityName: string) {
@@ -179,9 +190,8 @@ export default function Home() {
     if (!query || !canSubmit) return;
 
     setDraft("");
-    const graphPromise = loadGraphPreview(query);
+    void loadGraphPreview(query);
     await sendMessage({ text: query });
-    await graphPromise;
   }
 
   return (

@@ -102,7 +102,10 @@ export function resolveLlmModel(provider: LlmProviderName, purpose: LlmPurpose, 
   if (providerSpecific) return providerSpecific;
 
   const purposeSpecific = readFirstEnv(PURPOSE_MODEL_ENV_KEYS[purpose]);
-  if (purposeSpecific) return purposeSpecific;
+  const configuredProviderForPurpose = resolveProviderFromEnv(purpose);
+  if (purposeSpecific && (!configuredProviderForPurpose || configuredProviderForPurpose === provider)) {
+    return purposeSpecific;
+  }
 
   const genericProvider = readFirstEnv([
     `${provider.toUpperCase()}_MODEL`,

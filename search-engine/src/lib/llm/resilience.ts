@@ -68,6 +68,14 @@ export function classifyLlmError(error: unknown): ProviderErrorType {
   const message = `${(error as { message?: string })?.message ?? ""}`.toLowerCase();
   const statusCode = (error as { statusCode?: number })?.statusCode;
 
+  if (statusCode === 401 || statusCode === 403 || message.includes("unauthorized") || message.includes("forbidden")) {
+    return "server-error";
+  }
+
+  if (statusCode === 404 || message.includes("not found") || message.includes("unknown model")) {
+    return "server-error";
+  }
+
   if (statusCode === 429 || message.includes("too many requests") || message.includes("rate limit")) {
     return "rate-limit";
   }
@@ -130,7 +138,11 @@ export async function executeWithFallback<T>(
     }
 
     try {
-      const client = await createLlmClient({ ...options.clientOptions, provider });
+      const client = await createLlmClient({
+        ...options.clientOptions,
+        provider,
+        model: index === 0 ? options.clientOptions.model : undefined,
+      });
       const result = await options.execute(client, provider);
       recordProviderSuccess(provider);
       return { provider, result, failovers };

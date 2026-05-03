@@ -13,7 +13,8 @@ import {
 } from "@search/lib/context-injection";
 
 const UNKNOWN_RESPONSE = "Je ne sais pas d'après les Écritures fournies.";
-const DEFAULT_MODEL = process.env.GROUNDED_ANSWER_MODEL ?? "gpt-4o-mini";
+const CHAT_TIMEOUT_MS = Number(process.env.LLM_CHAT_TIMEOUT_MS ?? "30000");
+const CHAT_EXECUTION_TIMEOUT_MS = Number(process.env.LLM_CHAT_EXEC_TIMEOUT_MS ?? "35000");
 
 registerDefaultLlmProviders();
 
@@ -128,7 +129,17 @@ function extractUpstreamRateLimit(error: unknown): { retryAfterSeconds: number }
   return null;
 }
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms.`)), timeoutMs);
+    }),
+  ]);
+}
+
 export async function POST(req: NextRequest): Promise<Response> {
+  const traceId = `chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   const rateLimitResult = rateLimit(req);
   if (!rateLimitResult.success) {
     return NextResponse.json(
@@ -169,7 +180,16 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   try {
+    console.info("[chat][trace] start", { traceId, query });
     const routing = await routeQuery({ query });
+    console.info("[chat][trace] routed", {
+      traceId,
+      intent: routing.intent,
+      k: routing.k,
+      vectorWeight: routing.vectorWeight,
+      graphWeight: routing.graphWeight,
+      bm25Weight: routing.bm25Weight,
+    });
     const db = await getDb();
     const retriever = new HybridRetriever(db);
     const retrievalResult = await retriever.retrieve(
@@ -182,6 +202,12 @@ export async function POST(req: NextRequest): Promise<Response> {
     );
 
     const context = assembleHybridContext(retrievalResult.verses, retrievalResult.entityFacts);
+    console.info("[chat][trace] retrieved", {
+      traceId,
+      verses: retrievalResult.verses.length,
+      entityFacts: retrievalResult.entityFacts.length,
+      references: context.references.length,
+    });
     if (!context.references.length) {
       return createStaticAssistantResponse(UNKNOWN_RESPONSE);
     }
@@ -189,18 +215,22 @@ export async function POST(req: NextRequest): Promise<Response> {
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
         const textId = "chat-response";
+        console.info("[chat][trace] stream-execute", { traceId, textId });
 
         writer.write({ type: "text-start", id: textId });
         try {
-          await executeWithFallback({
+          const executionTimeoutMs = Number.isFinite(CHAT_EXECUTION_TIMEOUT_MS) && CHAT_EXECUTION_TIMEOUT_MS > 0
+            ? CHAT_EXECUTION_TIMEOUT_MS
+            : 35000;
+
+          await withTimeout(executeWithFallback({
             clientOptions: {
               purpose: "chat",
-              model: DEFAULT_MODEL,
+              timeoutMs: Number.isFinite(CHAT_TIMEOUT_MS) && CHAT_TIMEOUT_MS > 0 ? CHAT_TIMEOUT_MS : 30000,
             },
             execute: async (client) => {
               if (client.stream) {
                 for await (const token of client.stream({
-                  model: DEFAULT_MODEL,
                   temperature: 0,
                   messages: [
                     { role: "system", content: buildGroundedStreamingSystemPrompt() },
@@ -221,7 +251,6 @@ export async function POST(req: NextRequest): Promise<Response> {
               }
 
               const response = await client.complete({
-                model: DEFAULT_MODEL,
                 temperature: 0,
                 messages: [
                   { role: "system", content: buildGroundedStreamingSystemPrompt() },
@@ -241,7 +270,7 @@ export async function POST(req: NextRequest): Promise<Response> {
                 writer.write({ type: "text-delta", id: textId, delta: response.content });
               }
             },
-          });
+          }), executionTimeoutMs, "Chat execution");
         } finally {
           writer.write({ type: "text-end", id: textId });
         }

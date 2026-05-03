@@ -69,6 +69,16 @@ describe("llm resilience", () => {
     expect(classifyLlmError(new Error("Too many requests from upstream"))).toBe("rate-limit");
   });
 
+  it("classifies not-found model errors as retryable server errors", () => {
+    expect(classifyLlmError({ statusCode: 404 })).toBe("server-error");
+    expect(classifyLlmError(new Error("Unknown model: gemini-2.5-flash"))).toBe("server-error");
+  });
+
+  it("classifies unauthorized errors as retryable server errors", () => {
+    expect(classifyLlmError({ statusCode: 401 })).toBe("server-error");
+    expect(classifyLlmError(new Error("401 Unauthorized"))).toBe("server-error");
+  });
+
   it("falls back to the next provider on rate-limit failure", async () => {
     registerLlmProvider(
       createProvider("copilot", async () => {
