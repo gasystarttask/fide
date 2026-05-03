@@ -101,28 +101,51 @@ interface CacheEntry<T> {
   expiresAt: number;
 }
 
-const embeddingCache = new Map<string, CacheEntry<number[]>>();
-const retrieveCache = new Map<
-  string,
-  CacheEntry<{
-    verses: VerseResult[];
-    entityFacts: EntityFact[];
-    metadata: {
-      vectorWeight: number;
-      graphWeight: number;
-        bm25Weight: number;
-      totalVectorResults: number;
-      totalGraphResults: number;
-        totalBM25Results: number;
-      cached?: boolean;
-    };
-  }>
->();
+type RetrieveResult = {
+  verses: VerseResult[];
+  entityFacts: EntityFact[];
+  metadata: {
+    vectorWeight: number;
+    graphWeight: number;
+    bm25Weight: number;
+    totalVectorResults: number;
+    totalGraphResults: number;
+    totalBM25Results: number;
+    cached?: boolean;
+  };
+};
+
+declare global {
+  var __hybridRetrieverEmbeddingCache: Map<string, CacheEntry<number[]>> | undefined;
+  var __hybridRetrieverRetrieveCache: Map<string, CacheEntry<RetrieveResult>> | undefined;
+  var __hybridRetrieverInFlight: Map<string, Promise<RetrieveResult>> | undefined;
+}
+
+const embeddingCache =
+  global.__hybridRetrieverEmbeddingCache ??
+  (global.__hybridRetrieverEmbeddingCache = new Map<string, CacheEntry<number[]>>());
+const retrieveCache =
+  global.__hybridRetrieverRetrieveCache ??
+  (global.__hybridRetrieverRetrieveCache = new Map<string, CacheEntry<RetrieveResult>>());
+const retrieveInFlight =
+  global.__hybridRetrieverInFlight ??
+  (global.__hybridRetrieverInFlight = new Map<string, Promise<RetrieveResult>>());
 
 const bm25CircuitState = {
   consecutiveFailures: 0,
   openUntil: 0,
 };
+
+const PERF_TRACE_ENABLED =
+  process.env.LLM_PERF_TRACE === "true" || process.env.NODE_ENV !== "production";
+
+function logPerf(event: string, payload: Record<string, unknown>): void {
+  if (!PERF_TRACE_ENABLED) {
+    return;
+  }
+
+  console.info(`[perf][hybrid-retriever][${event}]`, payload);
+}
 
 const PER_VERSE_SLUG_RX =
   /-(?:gen|exo|lev|nom|deu|jos|jug|rut|sam|roi|chr|esd|neh|est|job|psa|pro|ecc|esa|jer|eze|dan|hos|joe|amo|abd|jon|mic|nah|hab|sop|agg|zac|mal|mat|mar|luc|jean|act|rom|cor|gal|eph|phi|col|the|tim|tit|phm|heb|jac|pie|jud|apo)(?:-?\d+)?$/i;
@@ -584,7 +607,12 @@ function scoreAndFilterEntityFacts(
 async function getQueryEmbedding(query: string): Promise<number[]> {
   const key = normalizeLoose(query);
   const cached = getCacheValue(embeddingCache, key);
-  if (cached) return cached;
+  if (cached) {
+    logPerf("embedding", { query, cached: true, latencyMs: 0 });
+    return cached;
+  }
+
+  const startedAt = nowMs();
 
   const embeddingResponse = await openai.embeddings.create({
     model: "text-embedding-3-small",
@@ -593,6 +621,7 @@ async function getQueryEmbedding(query: string): Promise<number[]> {
 
   const vector = embeddingResponse.data[0].embedding;
   setCacheWithCap(embeddingCache, key, vector, EMBEDDING_CACHE_TTL_MS, EMBEDDING_CACHE_MAX);
+  logPerf("embedding", { query, cached: false, latencyMs: nowMs() - startedAt });
   return vector;
 }
 
@@ -612,7 +641,9 @@ export class HybridRetriever {
     k: number,
     filters?: { testament?: string; book?: string }
   ): Promise<RankedVerseResult[]> {
+    const startedAt = nowMs();
     const queryVector = await getQueryEmbedding(query);
+    const embeddingLatencyMs = nowMs() - startedAt;
     const testamentRx = buildTestamentRegex(filters?.testament);
     const bookRxs = buildBookRegexes(filters?.book);
 
@@ -648,7 +679,17 @@ export class HybridRetriever {
       },
     });
 
+    const mongoStartedAt = nowMs();
     const docs = await this.versesCol.aggregate<ProjectedVerseDoc>(pipeline).toArray();
+
+    logPerf("vector-search", {
+      query,
+      k,
+      embeddingLatencyMs,
+      mongoLatencyMs: nowMs() - mongoStartedAt,
+      totalLatencyMs: nowMs() - startedAt,
+      resultCount: docs.length,
+    });
 
     return docs.slice(0, k).map((doc) => ({
       id: doc.id ?? toId(doc._id),
@@ -665,6 +706,7 @@ export class HybridRetriever {
     k: number,
     filters?: { testament?: string; book?: string }
   ): Promise<RankedVerseResult[]> {
+    const startedAt = nowMs();
     const tokens = tokenizeQuery(query);
     if (!tokens.length) return [];
 
@@ -672,6 +714,7 @@ export class HybridRetriever {
     const testamentRx = buildTestamentRegex(filters?.testament);
     const bookRxs = buildBookRegexes(filters?.book);
 
+    const entityMatchStartedAt = nowMs();
     const matchedEntities = await this.entitiesCol
       .find(
         {
@@ -685,7 +728,17 @@ export class HybridRetriever {
       .limit(120)
       .toArray();
 
-    if (!matchedEntities.length) return [];
+    if (!matchedEntities.length) {
+      logPerf("graph-search", {
+        query,
+        k,
+        entityMatchLatencyMs: nowMs() - entityMatchStartedAt,
+        totalLatencyMs: nowMs() - startedAt,
+        matchedEntities: 0,
+        resultCount: 0,
+      });
+      return [];
+    }
 
     const entitySlugs = matchedEntities.map((entity) => entity.slug);
 
@@ -693,6 +746,7 @@ export class HybridRetriever {
     if (bookRxs.length) andClauses.push({ book: { $in: bookRxs } });
     if (testamentRx) andClauses.push({ "metadata.testament": testamentRx });
 
+    const primaryDocsStartedAt = nowMs();
     const primaryDocs = await this.versesCol
       .find(
         { $and: andClauses },
@@ -728,6 +782,7 @@ export class HybridRetriever {
         if (bookRxs.length) fallbackAnd.push({ book: { $in: bookRxs } });
         if (testamentRx) fallbackAnd.push({ "metadata.testament": testamentRx });
 
+        const fallbackStartedAt = nowMs();
         docs = await this.versesCol
           .find(
             { $and: fallbackAnd },
@@ -745,8 +800,26 @@ export class HybridRetriever {
           )
           .limit(k)
           .toArray();
+
+        logPerf("graph-search-fallback", {
+          query,
+          k,
+          fallbackLatencyMs: nowMs() - fallbackStartedAt,
+          fallbackLabelCount: fallbackLabels.length,
+          resultCount: docs.length,
+        });
       }
     }
+
+    logPerf("graph-search", {
+      query,
+      k,
+      entityMatchLatencyMs: nowMs() - entityMatchStartedAt,
+      primaryDocsLatencyMs: nowMs() - primaryDocsStartedAt,
+      totalLatencyMs: nowMs() - startedAt,
+      matchedEntities: matchedEntities.length,
+      resultCount: docs.length,
+    });
 
     return docs.slice(0, k).map((doc, index) => ({
       id: doc.id ?? toId(doc._id),
@@ -763,6 +836,7 @@ export class HybridRetriever {
     k: number,
     filters?: { testament?: string; book?: string }
   ): Promise<RankedVerseResult[]> {
+    const startedAt = nowMs();
     if (isMeilisearchDisabled()) return [];
     if (isBm25CircuitOpen()) return [];
 
@@ -786,6 +860,12 @@ export class HybridRetriever {
       });
 
       recordBm25Success();
+      logPerf("bm25-search", {
+        query,
+        k,
+        totalLatencyMs: nowMs() - startedAt,
+        resultCount: response.hits?.length ?? 0,
+      });
 
       return (response.hits ?? []).slice(0, k).map((hit, indexPosition) => ({
         id: hit.id,
@@ -797,12 +877,19 @@ export class HybridRetriever {
       }));
     } catch (error) {
       recordBm25Failure();
+      logPerf("bm25-search-error", {
+        query,
+        k,
+        totalLatencyMs: nowMs() - startedAt,
+        error: error instanceof Error ? error.message : String(error),
+      });
       console.warn("[hybrid-retriever] BM25 unavailable, fallback to vector+graph", error);
       return [];
     }
   }
 
   async augmentWithEntityFacts(entitySlugs: string[]): Promise<EntityFact[]> {
+    const startedAt = nowMs();
     if (!entitySlugs.length) return [];
 
     const entitiesWithRelations = await this.entitiesCol
@@ -870,7 +957,20 @@ export class HybridRetriever {
       ])
       .toArray();
 
-    if (!entitiesWithRelations.length) return [];
+    if (!entitiesWithRelations.length) {
+      logPerf("augment-entity-facts", {
+        requestedEntitySlugs: entitySlugs.length,
+        resultCount: 0,
+        totalLatencyMs: nowMs() - startedAt,
+      });
+      return [];
+    }
+
+    logPerf("augment-entity-facts", {
+      requestedEntitySlugs: entitySlugs.length,
+      resultCount: entitiesWithRelations.length,
+      totalLatencyMs: nowMs() - startedAt,
+    });
 
     return entitiesWithRelations.map((entity) => ({
       slug: entity.slug,
@@ -901,6 +1001,7 @@ export class HybridRetriever {
     filters?: { testament?: string; book?: string },
     bm25Weight = 0.3
   ) {
+    const startedAt = nowMs();
     const normalizedWeights = normalizeSearchWeights(vectorWeight, graphWeight, bm25Weight);
 
     const cacheKey = JSON.stringify({
@@ -918,74 +1019,124 @@ export class HybridRetriever {
 
     const cached = getCacheValue(retrieveCache, cacheKey);
     if (cached) {
+      logPerf("retrieve", {
+        query,
+        k,
+        cached: true,
+        shared: false,
+        totalLatencyMs: nowMs() - startedAt,
+      });
       return {
         ...cached,
         metadata: { ...cached.metadata, cached: true },
       };
     }
 
-    const vectorSearchK = normalizedWeights.vectorWeight <= 0.15 ? Math.max(4, k) : k * 2;
-    const graphSearchK = normalizedWeights.graphWeight >= 0.7 ? Math.max(k + 2, 8) : k * 2;
-    const bm25SearchK = normalizedWeights.bm25Weight >= 0.35 ? Math.max(k + 3, 10) : k * 2;
-
-    const [vectorResults, graphResults, bm25Results] = await Promise.all([
-      normalizedWeights.vectorWeight <= 0.1
-        ? Promise.resolve([])
-        : this.vectorSearch(query, vectorSearchK, filters),
-      normalizedWeights.graphWeight <= 0.1
-        ? Promise.resolve([])
-        : this.graphSearch(query, graphSearchK, filters),
-      normalizedWeights.bm25Weight <= 0.05
-        ? Promise.resolve([])
-        : this.bm25Search(query, bm25SearchK, filters),
-    ]);
-
-    const merged = reciprocalRankFusion(
-      [vectorResults, graphResults, bm25Results],
-      [normalizedWeights.vectorWeight, normalizedWeights.graphWeight, normalizedWeights.bm25Weight]
-    );
-
-    const reranked = isGenealogyQuery(query) ? rerankByQueryOverlap(query, merged) : merged;
-    const topMerged = reranked.filter((item) => item.score >= minScore).slice(0, k);
-
-    let mentionedEntitySlugs = Array.from(
-      new Set(topMerged.flatMap((v) => v.entitySlugs ?? []).filter(Boolean))
-    );
-
-    // Fallback only when no entity_slugs are present.
-    if (!mentionedEntitySlugs.length) {
-      mentionedEntitySlugs = await extractMentionedEntities(
-        topMerged.map((verse) => verse.text),
-        this.entitiesCol,
-        query
-      );
+    const inFlight = retrieveInFlight.get(cacheKey);
+    if (inFlight) {
+      const sharedResult = await inFlight;
+      logPerf("retrieve", {
+        query,
+        k,
+        cached: false,
+        shared: true,
+        totalLatencyMs: nowMs() - startedAt,
+      });
+      return sharedResult;
     }
 
-    const verses: VerseResult[] = topMerged.map(({ id, text, reference, score, source }) => ({
-      id,
-      text,
-      reference,
-      score,
-      source,
-    }));
+    const retrievePromise = (async () => {
+      const vectorSearchK = normalizedWeights.vectorWeight <= 0.15 ? Math.max(4, k) : k * 2;
+      const graphSearchK = normalizedWeights.graphWeight >= 0.7 ? Math.max(k + 2, 8) : k * 2;
+      const bm25SearchK = normalizedWeights.bm25Weight >= 0.35 ? Math.max(k + 3, 10) : k * 2;
 
-    const rawEntityFacts = await this.augmentWithEntityFacts(mentionedEntitySlugs);
-    const entityFacts = scoreAndFilterEntityFacts(rawEntityFacts, verses, query);
+      const [vectorResults, graphResults, bm25Results] = await Promise.all([
+        normalizedWeights.vectorWeight <= 0.1
+          ? Promise.resolve([])
+          : this.vectorSearch(query, vectorSearchK, filters),
+        normalizedWeights.graphWeight <= 0.1
+          ? Promise.resolve([])
+          : this.graphSearch(query, graphSearchK, filters),
+        normalizedWeights.bm25Weight <= 0.05
+          ? Promise.resolve([])
+          : this.bm25Search(query, bm25SearchK, filters),
+      ]);
 
-    const result = {
-      verses,
-      entityFacts,
-      metadata: {
-        vectorWeight: normalizedWeights.vectorWeight,
-        graphWeight: normalizedWeights.graphWeight,
-        bm25Weight: normalizedWeights.bm25Weight,
-        totalVectorResults: vectorResults.length,
-        totalGraphResults: graphResults.length,
-        totalBM25Results: bm25Results.length,
-      },
-    };
+      const merged = reciprocalRankFusion(
+        [vectorResults, graphResults, bm25Results],
+        [normalizedWeights.vectorWeight, normalizedWeights.graphWeight, normalizedWeights.bm25Weight]
+      );
 
-    setCacheWithCap(retrieveCache, cacheKey, result, RETRIEVE_CACHE_TTL_MS, RETRIEVE_CACHE_MAX);
-    return result;
+      const reranked = isGenealogyQuery(query) ? rerankByQueryOverlap(query, merged) : merged;
+      const topMerged = reranked.filter((item) => item.score >= minScore).slice(0, k);
+
+      let mentionedEntitySlugs = Array.from(
+        new Set(topMerged.flatMap((v) => v.entitySlugs ?? []).filter(Boolean))
+      );
+
+      const extractEntitiesStartedAt = nowMs();
+      if (!mentionedEntitySlugs.length) {
+        mentionedEntitySlugs = await extractMentionedEntities(
+          topMerged.map((verse) => verse.text),
+          this.entitiesCol,
+          query
+        );
+      }
+      const extractEntitiesLatencyMs = nowMs() - extractEntitiesStartedAt;
+
+      const verses: VerseResult[] = topMerged.map(({ id, text, reference, score, source }) => ({
+        id,
+        text,
+        reference,
+        score,
+        source,
+      }));
+
+      const augmentStartedAt = nowMs();
+      const rawEntityFacts = await this.augmentWithEntityFacts(mentionedEntitySlugs);
+      const augmentLatencyMs = nowMs() - augmentStartedAt;
+      const scoreStartedAt = nowMs();
+      const entityFacts = scoreAndFilterEntityFacts(rawEntityFacts, verses, query);
+      const scoreLatencyMs = nowMs() - scoreStartedAt;
+
+      const result = {
+        verses,
+        entityFacts,
+        metadata: {
+          vectorWeight: normalizedWeights.vectorWeight,
+          graphWeight: normalizedWeights.graphWeight,
+          bm25Weight: normalizedWeights.bm25Weight,
+          totalVectorResults: vectorResults.length,
+          totalGraphResults: graphResults.length,
+          totalBM25Results: bm25Results.length,
+        },
+      };
+
+      setCacheWithCap(retrieveCache, cacheKey, result, RETRIEVE_CACHE_TTL_MS, RETRIEVE_CACHE_MAX);
+      logPerf("retrieve", {
+        query,
+        k,
+        cached: false,
+        shared: false,
+        totalLatencyMs: nowMs() - startedAt,
+        vectorResults: vectorResults.length,
+        graphResults: graphResults.length,
+        bm25Results: bm25Results.length,
+        mentionedEntitySlugs: mentionedEntitySlugs.length,
+        rawEntityFacts: rawEntityFacts.length,
+        finalEntityFacts: entityFacts.length,
+        extractEntitiesLatencyMs,
+        augmentLatencyMs,
+        scoreLatencyMs,
+      });
+      return result;
+    })();
+
+    retrieveInFlight.set(cacheKey, retrievePromise);
+    try {
+      return await retrievePromise;
+    } finally {
+      retrieveInFlight.delete(cacheKey);
+    }
   }
 }

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as resilience from "@search/lib/llm/resilience";
 import { routeQuery } from "@search/lib/query-router";
 
 describe("query-router French heuristics", () => {
@@ -32,5 +33,15 @@ describe("query-router French heuristics", () => {
     expect(result.vectorWeight).toBe(0.3);
     expect(result.graphWeight).toBe(0.3);
     expect(result.bm25Weight).toBe(0.4);
+  });
+
+  it("skips LLM routing for direct entity lookup questions", async () => {
+    const executeWithFallbackSpy = vi.spyOn(resilience, "executeWithFallback");
+
+    const result = await routeQuery({ query: "Qui est Abraham ?" });
+
+    expect(result.source).toBe("heuristic");
+    expect(result.intent).toBe("GENERAL");
+    expect(executeWithFallbackSpy).not.toHaveBeenCalled();
   });
 });
