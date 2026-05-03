@@ -75,7 +75,7 @@ export const openApiSpec = {
       post: {
         tags: ["Hybrid"],
         summary: "Hybrid search",
-        description: "Combines vector retrieval and graph retrieval with routing.",
+        description: "Combines vector, graph, and BM25 retrieval with routing.",
         requestBody: {
           required: true,
           content: {
@@ -147,7 +147,7 @@ export const openApiSpec = {
         tags: ["Answer"],
         summary: "Generate grounded answer",
         description:
-          "Generates an answer grounded in retrieved verses and entity facts. Supports JSON or SSE stream output.",
+          "Generates an answer grounded in retrieved verses and entity facts. Supports JSON or SSE stream output. Retrieval routing remains BM25-aware internally.",
         requestBody: {
           required: true,
           content: {
@@ -159,13 +159,11 @@ export const openApiSpec = {
                     query: "Que dit Romains au sujet de la foi ?",
                     stream: false,
                     k: 6,
-                    vectorWeight: 0.7,
-                    graphWeight: 0.3,
                   },
                 },
                 streamMode: {
                   value: {
-                    query: "Qui sont les proches de Jacob ?",
+                    query: "Qui est le fils de Jacob ?",
                     stream: true,
                   },
                 },

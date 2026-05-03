@@ -5,6 +5,7 @@
 
 - vector search (semantic similarity with OpenAI embeddings + MongoDB vector index),
 - graph search (entity-driven retrieval with `entity_slugs`),
+- BM25 search (lexical relevance via Meilisearch),
 - rank fusion (RRF) to merge both result sets.
 
 It returns:
@@ -20,13 +21,16 @@ It returns:
 2. Return cached payload if available (`retrieveCache`).
 3. Apply **adaptive fanout**:
    - If `vectorWeight <= 0.1`: skip vector search entirely (resolve to empty).
-   - If `graphWeight <= 0.25`: skip graph search entirely (resolve to empty).
-   - Otherwise: use fanout multiplier based on intent:
+   - If `graphWeight <= 0.1`: skip graph search entirely (resolve to empty).
+   - If `bm25Weight <= 0.05`: skip BM25 search entirely (resolve to empty).
+   - Otherwise: use fanout multipliers:
      - `vectorSearchK = (vectorWeight <= 0.15) ? max(4, k) : k * 2`
-     - `graphSearchK = (graphWeight >= 0.8) ? max(k + 2, 8) : k * 2`
+     - `graphSearchK = (graphWeight >= 0.7) ? max(k + 2, 8) : k * 2`
+     - `bm25SearchK = (bm25Weight >= 0.35) ? max(k + 3, 10) : k * 2`
 4. Run in parallel (both or single-sided):
    - `vectorSearch(query, vectorSearchK, filters)`
    - `graphSearch(query, graphSearchK, filters)`
+   - `bm25Search(query, bm25SearchK, filters)`
 5. Merge both lists using `reciprocalRankFusion(...)`.
 6. Keep top `k` verses above `minScore`.
 7. Resolve entity slugs:
@@ -54,9 +58,10 @@ It returns:
 - Returns `RankedVerseResult[]` with source `"graph"`.
 
 ### 3) Fusion: `reciprocalRankFusion`
-- Combines vector + graph rankings with configurable weights:
+- Combines vector + graph + BM25 rankings with configurable weights:
   - `vectorWeight`
   - `graphWeight`
+   - `bm25Weight`
 - Produces final hybrid score and source `"hybrid"`.
 
 ---
@@ -110,35 +115,35 @@ Both caches are in-memory TTL maps with max-size eviction.
 
 ## Weight presets (from Query Router)
 
-| Intent | Vector | Graph | k | Use Case |
-|--------|--------|-------|---|----------|
-| **THEOLOGY** | 0.9 | 0.1 | 5 | Thematic: "What does Bible say about faith?" |
-| **GENEALOGY** | 0.1 | 0.9 | 6 | Kinship: "Father of Jacob?" → *fast profile: 0.8/0.2 after routing* |
-| **GEOGRAPHY** | 0.5 | 0.5 | 8 | Places: "Abraham in Egypt?" |
-| **CHRONOLOGY** | 0.4 | 0.6 | 8 | Timeline: "What happened after X?" |
-| **GENERAL** | 0.8 | 0.2 | 5 | Fallback (vector-only with graph skip) |
+| Intent | Vector | Graph | BM25 | k | Use Case |
+|--------|--------|-------|------|---|----------|
+| **THEOLOGY** | 0.63 | 0.07 | 0.30 | 5 | Thematic: "Que dit la Bible sur la foi ?" |
+| **GENEALOGY** | 0.15 | 0.70 | 0.15 | 6 | Kinship: "Qui est le fils de Jacob ?" |
+| **GEOGRAPHY** | 0.30 | 0.30 | 0.40 | 8 | Places: "Abraham en Egypte ?" |
+| **CHRONOLOGY** | 0.35 | 0.40 | 0.25 | 8 | Timeline: "Que se passe-t-il apres X ?" |
+| **GENERAL** | 0.48 | 0.12 | 0.40 | 5 | Fallback balanced profile |
 
-*Note: Kinship fast profile applied dynamically by router when direct kinship detected.*
+*Note: direct kinship fast profile is applied dynamically as `0.68/0.17/0.15`.*
 
 ---
 
 ## Optimization: Adaptive fanout & kinship fast profile
 
 ### Context
-- **Genealogy queries** (`"fils de"`, `"son of"`, etc.) benefit from high graph weight but graph search is slow (~3–7s cold).
-- **Theology/General queries** are fast with vector-only but GENERAL used to run full hybrid (added latency + noise).
+- **Genealogy queries** (`"fils de"`, `"son of"`, etc.) still benefit from graph-heavy routing.
+- **Theology queries** (`gw=0.07`) usually skip graph due adaptive fanout threshold (`gw <= 0.1`).
 
 ### Solutions
 1. **Kinship fast profile** (from Query Router):
    - Direct kinship patterns detected in `query-router.ts` → `isDirectKinshipQuestion`
-   - Routes genealogy to `vectorWeight: 0.8, graphWeight: 0.2, k: 6` (fast)
-   - Skips graph search via adaptive fanout when `gw <= 0.25`
+   - Routes genealogy to `vectorWeight: 0.68, graphWeight: 0.17, bm25Weight: 0.15, k: 6` (fast)
+   - Keeps graph active (`gw=0.17`) while reducing graph dominance/noise
    - Result: genealogy queries drop from 6.6s → ~2s cold, correct Genesis verses for Joseph query
 
 2. **THEOLOGY weight bump + Christology keywords** (from Query Router US-009 refinement):
    - Added `"jesus"`, `"jésus"`, `"christ"`, `"messie"` to heuristic intent detection
-   - Adjusted `GENERAL: { vw: 0.8, gw: 0.2 }` (was 0.7/0.3)
-   - Ensures pure-vector queries stay <2s, irrelevant graph results skipped
+   - Current defaults use BM25-aware profiles (THEOLOGY `0.63/0.07/0.30`, GENERAL `0.48/0.12/0.40`)
+   - Keeps lexical recall while reducing graph overhead for theology
 
 3. **Genealogy lexical boost** (`rerankByQueryOverlap`):
    - If query looks genealogical, re-rank results by token overlap with query
