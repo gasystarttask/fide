@@ -47,4 +47,21 @@ describe("message formatting service", () => {
     fireEvent.click(screen.getByRole("button", { name: "John 3:16" }));
     expect(onCitationClick).toHaveBeenCalledWith("John 3:16");
   });
+
+  it("splits comma-separated citations inside a single bracket group", () => {
+    const onCitationClick = vi.fn();
+    const text =
+      "D'apres les Ecritures, les disciples incluent [Matthieu 5:1, Matthieu 21:6, Marc 3:7].";
+
+    render(<div>{renderMessageWithCitations(text, onCitationClick)}</div>);
+
+    fireEvent.click(screen.getByRole("button", { name: "Matthieu 5:1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Matthieu 21:6" }));
+    fireEvent.click(screen.getByRole("button", { name: "Marc 3:7" }));
+
+    expect(onCitationClick).toHaveBeenCalledTimes(3);
+    expect(onCitationClick).toHaveBeenNthCalledWith(1, "Matthieu 5:1");
+    expect(onCitationClick).toHaveBeenNthCalledWith(2, "Matthieu 21:6");
+    expect(onCitationClick).toHaveBeenNthCalledWith(3, "Marc 3:7");
+  });
 });

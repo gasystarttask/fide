@@ -6,7 +6,7 @@ const TOKEN_REGEX = /(\[([^\]]+\d+:\d+(?:-\d+)?)\]|\(([^\)]+\d+:\d+(?:-\d+)?)\)|
 
 function splitCitationReferences(citation: string): string[] {
   const refs = citation
-    .split(/\s*;\s*/)
+    .split(/\s*[;,]\s*/)
     .map((item) => item.trim())
     .filter((item) => item.length > 0 && /\d+:\d+/.test(item));
 
@@ -69,7 +69,7 @@ export const renderMessageWithCitations: RenderMessageWithCitations = (
       <Fragment key={`cite-group-${citation}-${index}`}>
         {references.map((reference, refIndex) => (
           <Fragment key={`cite-item-${reference}-${refIndex}`}>
-            {refIndex > 0 ? "; " : null}
+            {refIndex > 0 ? ", " : null}
             <button
               type="button"
               onClick={() => onCitationClick(reference)}
