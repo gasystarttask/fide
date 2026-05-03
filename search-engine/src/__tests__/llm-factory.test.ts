@@ -17,7 +17,6 @@ const envSnapshot = {
   LLM_CHAT_MODEL: process.env.LLM_CHAT_MODEL,
   QUERY_ROUTER_MODEL: process.env.QUERY_ROUTER_MODEL,
   GROUNDED_ANSWER_MODEL: process.env.GROUNDED_ANSWER_MODEL,
-  COPILOTE_MODEL: process.env.COPILOTE_MODEL,
   COPILOT_MODEL: process.env.COPILOT_MODEL,
 };
 
@@ -64,7 +63,6 @@ describe("llm factory", () => {
     delete process.env.LLM_CHAT_MODEL;
     delete process.env.QUERY_ROUTER_MODEL;
     delete process.env.GROUNDED_ANSWER_MODEL;
-    delete process.env.COPILOTE_MODEL;
     delete process.env.COPILOT_MODEL;
   });
 
@@ -79,13 +77,12 @@ describe("llm factory", () => {
     restoreEnv("LLM_CHAT_MODEL", envSnapshot.LLM_CHAT_MODEL);
     restoreEnv("QUERY_ROUTER_MODEL", envSnapshot.QUERY_ROUTER_MODEL);
     restoreEnv("GROUNDED_ANSWER_MODEL", envSnapshot.GROUNDED_ANSWER_MODEL);
-    restoreEnv("COPILOTE_MODEL", envSnapshot.COPILOTE_MODEL);
     restoreEnv("COPILOT_MODEL", envSnapshot.COPILOT_MODEL);
   });
 
-  it("resolves legacy extraction model aliases", () => {
+  it("resolves the copilot extraction model from the canonical env", () => {
     process.env.GITHUB_TOKEN = "github-token";
-    process.env.COPILOTE_MODEL = "gpt-4o-mini-custom";
+    process.env.COPILOT_MODEL = "gpt-4o-mini-custom";
 
     const resolved = resolveAndValidateLlmClientOptions({
       purpose: "extraction",

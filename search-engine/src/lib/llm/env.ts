@@ -17,7 +17,7 @@ const PURPOSE_MODEL_ENV_KEYS: Record<LlmPurpose, string[]> = {
   chat: ["LLM_CHAT_MODEL", "GROUNDED_ANSWER_MODEL"],
   router: ["LLM_ROUTER_MODEL", "QUERY_ROUTER_MODEL"],
   "grounded-answer": ["LLM_GROUNDED_ANSWER_MODEL", "GROUNDED_ANSWER_MODEL"],
-  extraction: ["LLM_EXTRACTION_MODEL", "COPILOT_MODEL", "COPILOTE_MODEL"],
+  extraction: ["LLM_EXTRACTION_MODEL", "COPILOT_MODEL"],
 };
 
 const PROVIDER_DEFAULT_MODELS: Record<LlmProviderName, string> = {
@@ -107,10 +107,7 @@ export function resolveLlmModel(provider: LlmProviderName, purpose: LlmPurpose, 
     return purposeSpecific;
   }
 
-  const genericProvider = readFirstEnv([
-    `${provider.toUpperCase()}_MODEL`,
-    provider === "copilot" ? "COPILOTE_MODEL" : "",
-  ].filter(Boolean));
+  const genericProvider = readFirstEnv([`${provider.toUpperCase()}_MODEL`]);
   if (genericProvider) return genericProvider;
 
   return PROVIDER_DEFAULT_MODELS[provider];
