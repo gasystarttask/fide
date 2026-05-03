@@ -15,10 +15,12 @@ The app runs on http://localhost:3000.
 
 Copy `env.example` to `.env.local` and set at least one runtime provider:
 
-- `GITHUB_TOKEN` for GitHub Models / Copilot
-- `OPENAI_API_KEY` for OpenAI
 - `GEMINI_API_KEY` for Gemini
+- `OPENAI_API_KEY` for OpenAI
+- `GITHUB_TOKEN` for GitHub Models / Copilot
 - `OLLAMA_BASE_URL` for a local OpenAI-compatible endpoint such as Ollama
+
+The default runtime configuration targets Gemini first with `gemini-2.5-flash` for chat, router, grounded answer, and extraction. Override any surface with the per-purpose provider and model env vars if you need a different deployment profile.
 
 The runtime provider factory supports per-surface selection and fallback via env vars:
 

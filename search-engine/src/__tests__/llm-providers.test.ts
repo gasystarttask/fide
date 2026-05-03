@@ -138,4 +138,30 @@ describe("llm providers", () => {
     expect(response.provider).toBe("gemini");
     expect(response.content).toBe("gemini response");
   });
+
+  it("normalizes prefixed Gemini model names before calling generateContent", async () => {
+    process.env.GEMINI_API_KEY = "gemini-key";
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        candidates: [{ content: { parts: [{ text: "gemini response" }] } }],
+      }),
+    });
+    registerDefaultLlmProviders();
+
+    const client = await createLlmClient({
+      purpose: "chat",
+      provider: "gemini",
+      model: "models/gemini-2.5-flash",
+    });
+
+    await client.complete({
+      messages: [{ role: "user", content: "hello" }],
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=gemini-key",
+      expect.any(Object)
+    );
+  });
 });

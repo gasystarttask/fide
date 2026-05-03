@@ -17,8 +17,13 @@ type GeminiResponse = {
   candidates?: GeminiCandidate[];
 };
 
+function normalizeGeminiModel(model: string): string {
+  const trimmedModel = model.trim();
+  return trimmedModel.startsWith("models/") ? trimmedModel.slice("models/".length) : trimmedModel;
+}
+
 function buildGeminiUrl(model: string, apiKey: string): string {
-  const encodedModel = encodeURIComponent(model);
+  const encodedModel = encodeURIComponent(normalizeGeminiModel(model));
   return `https://generativelanguage.googleapis.com/v1beta/models/${encodedModel}:generateContent?key=${apiKey}`;
 }
 
