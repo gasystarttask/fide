@@ -1,4 +1,4 @@
-FROM node:25.9.0-alpine3.23 AS deps
+FROM node:26.1.0-alpine3.23 AS deps
 WORKDIR /app
 
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -11,7 +11,7 @@ COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 
 
-FROM node:25.9.0-alpine3.23 AS builder
+FROM node:26.1.0-alpine3.23 AS builder
 WORKDIR /app
 
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -28,7 +28,7 @@ RUN OPENAI_API_KEY=$NEXT_BUILD_AI_VALUE DATABASE_URL=$NEXT_BUILD_DB_URI npm run 
 	&& npm prune --omit=dev
 
 
-FROM node:25.9.0-alpine3.23 AS runner
+FROM node:26.1.0-alpine3.23 AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
