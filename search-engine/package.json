@@ -24,7 +24,7 @@
     "@ai-sdk/openai": "^3.0.64",
     "@ai-sdk/react": "^3.0.177",
     "@langchain/core": "^1.1.39",
-    "@langchain/openai": "^1.4.4",
+    "@langchain/openai": "^1.4.5",
     "ai": "^6.0.175",
     "framer-motion": "^12.38.0",
     "meilisearch": "^0.58.0",
