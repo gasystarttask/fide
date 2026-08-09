@@ -65,3 +65,34 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    needs: docker
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AKS_AUTOMATION_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials \
+            --resource-group "${{ vars.AKS_RESOURCE_GROUP }}" \
+            --name "${{ vars.AKS_CLUSTER_NAME }}" \
+            --overwrite-existing
+
+      # Deploys the exact sha-tagged image just built (not `latest`) so the
+      # rollout is tied to this specific commit, not whatever `latest`
+      # happens to point at when the node pulls it.
+      - name: Deploy image
+        run: |
+          IMAGE="ghcr.io/${{ github.repository_owner }}/bible-chat-scholar:sha-${GITHUB_SHA::7}"
+          kubectl set image deployment/search-engine "search-engine=${IMAGE}"
+          kubectl rollout status deployment/search-engine --timeout=180s

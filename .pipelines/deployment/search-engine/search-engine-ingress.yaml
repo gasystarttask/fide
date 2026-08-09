@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: search-engine-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/limit-rps: "30"
+    nginx.ingress.kubernetes.io/limit-connections: "30"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - fide.rrahajason.space
+    secretName: search-engine-tls
+  rules:
+  - host: fide.rrahajason.space
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: search-engine-service
+            port:
+              number: 3000
