@@ -1,0 +1,20 @@
+resource_group_name       = "rg-bible-sg-docdb-free"
+location                  = "westeurope"
+mongo_cluster_name_prefix = "bible-sg-docdb"
+administrator_username    = "docdbadmin"
+
+allow_azure_services = true
+allow_all_ips         = false
+
+allowed_ip_ranges = [
+  # {
+  #   name     = "home"
+  #   start_ip = "203.0.113.10"
+  #   end_ip   = "203.0.113.10"
+  # }
+]
+
+tags = {
+  project     = "bible-sg"
+  environment = "poc"
+}
