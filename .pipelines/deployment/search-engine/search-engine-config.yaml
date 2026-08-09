@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: search-engine-config
+data:
+  MONGODB_DB_NAME: "bible_sg"
+  MONGODB_COLLECTION_NAME: "verses"
+  # Cluster-internal — Meilisearch has no public ingress, only a ClusterIP Service.
+  MEILISEARCH_URL: "http://meilisearch-service:7700"
+
+  LLM_DEFAULT_PROVIDER: "openai"
+  LLM_CHAT_PROVIDER: "openai"
+  LLM_ROUTER_PROVIDER: "openai"
+  LLM_GROUNDED_ANSWER_PROVIDER: "openai"
+  LLM_EXTRACTION_PROVIDER: "openai"
+
+  LLM_FALLBACK_ORDER_CHAT: "openai,gemini,copilot,ollama"
+  LLM_FALLBACK_ORDER_ROUTER: "openai,gemini,copilot,ollama"
+  LLM_FALLBACK_ORDER_GROUNDED_ANSWER: "openai,gemini,copilot,ollama"
+  LLM_FALLBACK_ORDER_EXTRACTION: "openai,gemini,copilot,ollama"
+
+  LLM_CHAT_MODEL: "gpt-4o-mini"
+  LLM_ROUTER_MODEL: "gpt-4o-mini"
+  LLM_GROUNDED_ANSWER_MODEL: "gpt-4o-mini"
+  LLM_EXTRACTION_MODEL: "gpt-4o-mini"
+  COPILOT_MODEL: "gpt-4o-mini"

@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: search-engine
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: search-engine
+  template:
+    metadata:
+      labels:
+        app: search-engine
+    spec:
+      containers:
+      - name: search-engine
+        # Overwritten on every deploy by CI (`kubectl set image`) with the
+        # exact sha-tagged image just built; this is only the bootstrap value
+        # for the first manual `kubectl apply`.
+        image: ghcr.io/gasystarttask/bible-chat-scholar:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+        envFrom:
+        - configMapRef:
+            name: search-engine-config
+        - secretRef:
+            name: search-engine-secret
+        env:
+        # Sourced from the same Secret Meilisearch itself uses — avoids
+        # keeping the master key in two places.
+        - name: MEILISEARCH_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: meilisearch-secret
+              key: MEILI_MASTER_KEY
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: search-engine-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3000
+    targetPort: 3000
+  selector:
+    app: search-engine

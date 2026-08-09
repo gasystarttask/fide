@@ -132,11 +132,15 @@ KUBECONFIG=kubeconfig.yaml kubectl get nodes
 ## Network access
 
 **Mongo cluster:** by default `allow_azure_services = true` adds a firewall
-rule for Azure datacenter IP ranges. To reach the cluster from your
-workstation, add your public IP to `allowed_ip_ranges` in `terraform.tfvars`.
-Avoid setting `allow_all_ips = true` unless you understand the exposure — the
-cluster still requires authentication, but it opens the endpoint to the whole
-internet.
+rule for Azure datacenter IP ranges — this already covers the search-engine
+app running on the AKS cluster below, since AKS nodes are themselves
+Azure-hosted VMs (Microsoft's docs note this rule's scope is "any Azure
+service," including other customers' resources — broader than just this
+cluster, but far narrower than the internet). To reach the Mongo cluster
+directly from your workstation (e.g. for `mongosh`), add your public IP to
+`allowed_ip_ranges` in `terraform.tfvars`. Avoid setting `allow_all_ips = true`
+unless you understand the exposure — the cluster still requires
+authentication, but it opens the endpoint to the whole internet.
 
 **AKS API server:** open to any IP by default (stock AKS behavior). Restrict
 it by setting `aks_api_server_authorized_ip_ranges` in `terraform.tfvars`

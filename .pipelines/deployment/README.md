@@ -46,14 +46,23 @@ Needed once per cluster, before deploying any app manifests. Requires
    kubectl apply -f cluster/letsencrypt-cluster-issuer.yaml
    ```
 
-4. **DNS.** For each hostname used by an Ingress (e.g. `meili.rrahajason.space`),
-   add an `A` record in your DNS provider (Vercel, for `rrahajason.space`)
-   pointing at the ingress controller's external IP from step 1. Let's
-   Encrypt's HTTP-01 challenge (used by the ClusterIssuer above) requires this
-   to resolve correctly *before* an Ingress referencing it is applied, or
-   issuance will fail/retry.
+4. **DNS.** The only public hostname now is the search-engine app,
+   `fide.rrahajason.space` (Meilisearch is cluster-internal — see below).
+   Add an `A` record for it in your DNS provider (Vercel, for
+   `rrahajason.space`) pointing at the ingress controller's external IP from
+   step 1. Let's Encrypt's HTTP-01 challenge (used by the ClusterIssuer above)
+   requires this to resolve correctly *before* an Ingress referencing it is
+   applied, or issuance will fail/retry.
 
 ## Deploying Meilisearch
+
+Meilisearch is **cluster-internal only** — no Ingress, no public hostname, no
+TLS. It's reachable from other pods (the search-engine app below) at
+`http://meilisearch-service:7700`, and from nothing outside the cluster. This
+also means its Cosmos DB access no longer needs a public-internet-facing
+firewall rule (see `../../iac/README.md`'s Network access section) — only
+the search-engine app talks to it externally, and it's Azure-hosted (AKS)
+itself.
 
 1. Create the master-key Secret (never commit the real value — generate a
    fresh one, e.g. `openssl rand -hex 32`):
@@ -65,11 +74,16 @@ Needed once per cluster, before deploying any app manifests. Requires
    ```bash
    kubectl apply -f meilisearch/meili-storage.yml
    kubectl apply -f meilisearch/meilisearch-deployment.yaml
-   kubectl apply -f meilisearch/meilisearch-ingress.yaml
    ```
-3. Once DNS has propagated and the ClusterIssuer has issued the cert
-   (`kubectl describe certificate meilisearch-tls` to check progress), the
-   service is reachable at `https://meili.rrahajason.space`.
+
+If you're migrating an existing cluster that previously had Meilisearch
+exposed at `meili.rrahajason.space`, remove the old ingress and DNS record:
+```bash
+kubectl delete ingress meilisearch-ingress --ignore-not-found
+```
+(deleting the Ingress cascade-deletes its cert-manager `Certificate` and TLS
+`Secret` too, via owner references) — then remove the now-dangling `meili`
+`A` record from your DNS provider.
 
 ### Rotating the master key
 
@@ -78,7 +92,46 @@ kubectl create secret generic meilisearch-secret \
   --from-literal=MEILI_MASTER_KEY='<new-key>' \
   --dry-run=client -o yaml | kubectl apply -f -
 kubectl rollout restart deployment/meilisearch
+kubectl rollout restart deployment/search-engine
 ```
+
+## Deploying search-engine
+
+The app (image `ghcr.io/gasystarttask/bible-chat-scholar`, built by
+`.github/workflows/search-engine-docker.yml`) runs in the same cluster as
+Meilisearch and reaches it over the internal ClusterIP Service — no public
+Meilisearch exposure and no Cosmos DB IP-allowlisting problem, unlike the
+earlier Vercel-based setup (Vercel's serverless functions have no fixed
+outbound IP to allowlist, which is exactly what forced `allow_all_ips = true`
+on the Mongo cluster before; running on AKS avoids that entirely).
+
+1. Create the runtime Secret (values from `search-engine/env.example`; get
+   `DATABASE_URL` via `terraform output -raw mongo_connection_string` in
+   `iac/`). `MEILISEARCH_API_KEY` is deliberately **not** included here — the
+   Deployment reads it directly from `meilisearch-secret` instead, so it
+   only exists in one place:
+   ```bash
+   kubectl create secret generic search-engine-secret \
+     --from-literal=DATABASE_URL='<mongo connection string>' \
+     --from-literal=OPENAI_API_KEY='<key>' \
+     --from-literal=GEMINI_API_KEY='<key>' \
+     --from-literal=GITHUB_TOKEN='<token>'
+   ```
+2. Apply the manifests:
+   ```bash
+   kubectl apply -f search-engine/search-engine-config.yaml
+   kubectl apply -f search-engine/search-engine-deployment.yaml
+   kubectl apply -f search-engine/search-engine-ingress.yaml
+   ```
+3. Once DNS has propagated and the cert is issued
+   (`kubectl describe certificate search-engine-tls`), the app is live at
+   `https://fide.rrahajason.space`.
+
+After this bootstrap, deploys are continuous: every push to `main` that
+touches `search-engine/**` builds a new image and runs `kubectl set image`
+against this Deployment automatically (see `search-engine-docker.yml`) — you
+shouldn't need to `kubectl apply` the Deployment manually again unless you
+change the manifest itself (env vars, resources, etc.).
 
 ## Cost control: AKS stop/start automation
 
@@ -142,3 +195,10 @@ Once set, the workflow runs on its schedule with no further action needed.
 Note that Meilisearch (and anything else on the cluster) is unreachable
 while stopped — `kubectl` commands against a stopped cluster's API server
 will time out until the next `start`.
+
+The `deploy` job in `search-engine-docker.yml` (continuous deployment for
+the search-engine app) reuses this exact same app/federated credential and
+the same five repository variables — `Azure Kubernetes Service Contributor
+Role`'s wildcard `Microsoft.ContainerService/managedClusters/*` permissions
+already include fetching cluster credentials (`listClusterUserCredential`),
+so no separate Azure setup is needed for it.
