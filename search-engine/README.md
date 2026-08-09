@@ -36,6 +36,26 @@ The runtime provider factory supports per-surface selection and fallback via env
 
 Model overrides are available through `LLM_CHAT_MODEL`, `LLM_ROUTER_MODEL`, `LLM_GROUNDED_ANSWER_MODEL`, and `LLM_EXTRACTION_MODEL`.
 
+## PR preview deployments (Vercel)
+
+`.github/workflows/search-engine-vercel-preview.yml` deploys a Vercel preview
+on every PR that touches `search-engine/**`, comments the preview URL on the
+PR (updating the same comment on subsequent pushes), and removes the
+deployment + updates the comment when the PR is closed.
+
+One-time setup — add these as repository secrets (Settings → Secrets and
+variables → Actions):
+
+| Secret | Where to get it |
+|---|---|
+| `VERCEL_TOKEN` | Vercel account → Settings → Tokens |
+| `VERCEL_ORG_ID` | `.vercel/project.json` after running `vercel link` locally once, or Vercel project → Settings → General |
+| `VERCEL_PROJECT_ID` | Same as above |
+
+Run `vercel link` from `search-engine/` once locally to create the Vercel
+project and populate `.vercel/project.json` with these IDs (the `.vercel/`
+folder itself is gitignored and shouldn't be committed).
+
 ## Validation
 
 ```bash
