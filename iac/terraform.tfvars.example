@@ -4,7 +4,7 @@ mongo_cluster_name_prefix = "bible-sg-docdb"
 administrator_username    = "docdbadmin"
 
 allow_azure_services = true
-allow_all_ips         = false
+allow_all_ips        = false
 
 allowed_ip_ranges = [
   # {
@@ -12,6 +12,15 @@ allowed_ip_ranges = [
   #   start_ip = "203.0.113.10"
   #   end_ip   = "203.0.113.10"
   # }
+]
+
+aks_cluster_name_prefix = "bible-sg-aks"
+aks_node_count          = 1
+aks_node_vm_size        = "Standard_B2s"
+aks_os_disk_size_gb     = 32
+
+aks_api_server_authorized_ip_ranges = [
+  # "203.0.113.10/32",
 ]
 
 tags = {

@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: meilisearch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: meilisearch
+  template:
+    metadata:
+      labels:
+        app: meilisearch
+    spec:
+      containers:
+      - name: meilisearch
+        image: getmeili/meilisearch:v1.12 # Use latest stable version
+        env:
+        - name: MEILI_ENV
+          value: "production"
+        - name: MEILI_MASTER_KEY
+          valueFrom:
+            secretKeyRef:
+              name: meilisearch-secret
+              key: MEILI_MASTER_KEY
+        ports:
+        - containerPort: 7700
+        volumeMounts:
+        - mountPath: /meili_data
+          name: meili-data-vol
+      volumes:
+      - name: meili-data-vol
+        persistentVolumeClaim:
+          claimName: meilisearch-db-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: meilisearch-service
+spec:
+  type: ClusterIP # exposed publicly via Ingress (TLS), not directly
+  ports:
+  - port: 7700
+    targetPort: 7700
+  selector:
+    app: meilisearch

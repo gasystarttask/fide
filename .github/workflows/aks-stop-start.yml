@@ -1,0 +1,61 @@
+name: AKS Stop/Start
+
+on:
+  schedule:
+    # Stop nightly (all week) at 19:00 UTC.
+    - cron: '0 19 * * *'
+    # Start weekday mornings (Mon-Fri) at 06:00 UTC. Cluster stays stopped
+    # over the weekend since no start job runs on Sat/Sun.
+    - cron: '0 6 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - stop
+          - start
+
+concurrency:
+  group: aks-stop-start
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  stop:
+    if: github.event.schedule == '0 19 * * *' || (github.event_name == 'workflow_dispatch' && inputs.action == 'stop')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AKS_AUTOMATION_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Stop AKS cluster
+        run: |
+          az aks stop \
+            --resource-group "${{ vars.AKS_RESOURCE_GROUP }}" \
+            --name "${{ vars.AKS_CLUSTER_NAME }}"
+
+  start:
+    if: github.event.schedule == '0 6 * * 1-5' || (github.event_name == 'workflow_dispatch' && inputs.action == 'start')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AKS_AUTOMATION_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Start AKS cluster
+        run: |
+          az aks start \
+            --resource-group "${{ vars.AKS_RESOURCE_GROUP }}" \
+            --name "${{ vars.AKS_CLUSTER_NAME }}"
