@@ -16,7 +16,7 @@ env:
 
 jobs:
   deploy:
-    if: github.event.action != 'closed'
+    if: github.event.action != 'closed' && github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -37,6 +37,20 @@ jobs:
 
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
+
+      # TODO: remove once the "Could not retrieve Project Settings" vercel
+      # pull failure is diagnosed. Doesn't print raw secret values — only a
+      # hash (to compare against a local `echo -n "<token>" | sha256sum`)
+      # and the two IDs, which aren't sensitive on their own.
+      - name: Debug secret fingerprints (temporary)
+        run: |
+          echo -n "$VERCEL_TOKEN" | sha256sum
+          echo "orgId=$VERCEL_ORG_ID"
+          echo "projectId=$VERCEL_PROJECT_ID"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Pull Vercel environment
         run: vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
@@ -94,7 +108,7 @@ jobs:
             }
 
   cleanup:
-    if: github.event.action == 'closed'
+    if: github.event.action == 'closed' && github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
       contents: read
