@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: meilisearch-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Caps sustained traffic per client IP to blunt scanning/hammering bots
+    # without affecting normal search-as-you-type usage. Burst allowance
+    # defaults to 5x (so up to 100 requests can burst before throttling
+    # kicks in to the 20/s sustained rate).
+    nginx.ingress.kubernetes.io/limit-rps: "20"
+    nginx.ingress.kubernetes.io/limit-connections: "20"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - meili.rrahajason.space
+    secretName: meilisearch-tls
+  rules:
+  - host: meili.rrahajason.space
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: meilisearch-service
+            port:
+              number: 7700

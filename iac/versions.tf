@@ -27,9 +27,8 @@ provider "azurerm" {
   subscription_id = var.subscription_id
   tenant_id       = var.tenant_id
 
-  # azurerm defaults to registering no resource providers at all; explicitly
-  # register the one this config needs (Cosmos DB / Mongo cluster).
-  resource_providers_to_register = ["Microsoft.DocumentDB"]
-
+  # Required resource providers (Microsoft.DocumentDB, Microsoft.ContainerService,
+  # Microsoft.Network) are registered once as an account prerequisite, not
+  # managed here — see README's "One-time Azure OIDC setup" section.
   features {}
 }

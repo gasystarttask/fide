@@ -29,3 +29,19 @@ output "mongo_connection_string" {
   value       = azurerm_mongo_cluster.this.connection_strings[0].value
   sensitive   = true
 }
+
+output "aks_cluster_name" {
+  description = "Name of the AKS cluster."
+  value       = azurerm_kubernetes_cluster.this.name
+}
+
+output "aks_cluster_id" {
+  description = "Resource ID of the AKS cluster."
+  value       = azurerm_kubernetes_cluster.this.id
+}
+
+output "aks_kube_config" {
+  description = "kubeconfig for the AKS cluster. Write to a file and use with kubectl, e.g. `terraform output -raw aks_kube_config > kubeconfig.yaml`."
+  value       = azurerm_kubernetes_cluster.this.kube_config_raw
+  sensitive   = true
+}

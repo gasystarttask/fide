@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: meilisearch-db-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: managed-csi # Utilise l'infrastructure Azure
+  resources:
+    requests:
+      storage: 10Gi # Ajustez selon la taille de vos documents
