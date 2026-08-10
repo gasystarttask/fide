@@ -1,6 +1,10 @@
 name: Build And Push Search Engine Image
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/search-engine-docker.yml'
+      - 'search-engine/**'
   push:
     branches:
       - main
@@ -19,7 +23,40 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
+  # Dependabot PRs can't push images (no access to secrets, and there's no
+  # reason to publish one pre-merge anyway) — just prove `npm run build`
+  # still succeeds so a bad bump is caught before merge instead of failing
+  # the full docker/deploy pipeline after landing on main.
+  validate-build:
+    if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: search-engine
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: search-engine/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (validation only — no image, no push, no deploy)
+        run: npm run build
+        env:
+          OPENAI_API_KEY: dummy
+          DATABASE_URL: mongodb://127.0.0.1:27017/bible_sg
+
   docker:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
