@@ -138,8 +138,8 @@ change the manifest itself (env vars, resources, etc.).
 The node VM and its Load Balancer/Public IP are the real recurring costs in
 this setup (the AKS control plane and Cosmos DB free tiers are genuinely
 $0 — see `../../iac/README.md`). `.github/workflows/aks-stop-start.yml`
-stops the cluster nightly (19:00 UTC, every day) and starts it weekday
-mornings (06:00 UTC, Mon-Fri), so it stays fully stopped over the weekend.
+stops the cluster nightly (19:00 UTC, every day) and starts it weekdays
+(17:00 UTC, Mon-Fri), so it stays fully stopped over the weekend.
 Times are UTC and don't shift with daylight saving — adjust the two `cron`
 expressions in the workflow if you want to compensate.
 
