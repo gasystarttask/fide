@@ -4,6 +4,14 @@ metadata:
   name: meilisearch
 spec:
   replicas: 1
+  # RollingUpdate (the default) would try to bring up a new pod before
+  # killing the old one — impossible here since the PVC is ReadWriteOnce
+  # and can only be mounted by one pod at a time, causing a permanent
+  # deadlock (new pod stuck waiting on the volume, old pod never killed
+  # because the new one never becomes ready). Recreate kills the old pod
+  # first, avoiding the overlap entirely.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: meilisearch
@@ -38,7 +46,7 @@ kind: Service
 metadata:
   name: meilisearch-service
 spec:
-  type: ClusterIP # exposed publicly via Ingress (TLS), not directly
+  type: ClusterIP # cluster-internal only — no public Ingress
   ports:
   - port: 7700
     targetPort: 7700
