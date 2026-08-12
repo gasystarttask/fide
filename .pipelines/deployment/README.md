@@ -1,9 +1,47 @@
 # Kubernetes deployment
 
-Manifests deployed by hand via `kubectl apply` against the AKS cluster
-provisioned in `../../iac/`. No Helm/Kustomize/CI pipeline yet — this is a
-plain, ordered set of YAML files.
+Manifests applied against the AKS cluster provisioned in `../../iac/` — a
+plain, ordered set of YAML files (no Helm/Kustomize for the app manifests
+themselves).
 
+## Automated deployment
+
+`.github/workflows/deploy-infra.yml` runs every step below **in the same
+order**, automatically, on every push to `main` touching
+`.pipelines/deployment/**` (or manually via `workflow_dispatch`). It's
+idempotent — safe to re-run any time, including on a totally fresh cluster.
+The rest of this document describes what it does and how to run those same
+steps by hand (useful for a first bootstrap, or if you need to debug a step
+in isolation).
+
+**One thing it does *not* automate: DNS.** Pointing `fide.rrahajason.space`
+at the ingress controller's IP is a manual, one-off step (see below) — it
+only needs doing once per IP, and there's no DNS API credential wired into
+CI for it.
+
+It needs these repository **secrets** (Settings → Secrets and variables →
+Actions → Secrets — these genuinely are sensitive, unlike the `AKS_*`/
+`AZURE_*` **variables** used for OIDC, which are documented further down):
+
+| Secret | Used for |
+|---|---|
+| `MEILISEARCH_MASTER_KEY` | `meilisearch-secret` — pick a fresh value, e.g. `openssl rand -hex 32` |
+| `MONGO_DATABASE_URL` | `search-engine-secret`'s `DATABASE_URL` — `terraform output -raw mongo_connection_string` in `iac/` |
+| `OPENAI_API_KEY` | `search-engine-secret` |
+| `GEMINI_API_KEY` | `search-engine-secret` |
+| `APP_GITHUB_TOKEN` | `search-engine-secret`'s `GITHUB_TOKEN` (named `APP_*` to avoid colliding with the `GITHUB_TOKEN` GitHub injects automatically into every workflow run) |
+
+Since the workflow re-applies these secrets from CI on every run, they
+become the source of truth going forward — changing a value here and
+re-running the workflow (or pushing any change under
+`.pipelines/deployment/**`) rotates it live, including a rollout restart of
+the affected Deployment so it actually picks up the new value.
+
+## Azure AKS Shortcut: 
+If your new cluster is hosted on Azure AKS and you haven't imported it to your machine yet, run this Azure CLI command to pull the context automatically and switch to it:
+```bash
+az aks get-credentials --resource-group <MY_RESOURCE_GROUP> --name <MY_CLUSTER_NAME>
+```
 ## One-time cluster bootstrap
 
 Needed once per cluster, before deploying any app manifests. Requires
@@ -74,6 +112,26 @@ itself.
    ```bash
    kubectl apply -f meilisearch/meili-storage.yml
    kubectl apply -f meilisearch/meilisearch-deployment.yaml
+   ```
+3. Initialize the indexes. Since Meilisearch has no public endpoint,
+   `services/scripts/init-meilisearch.sh` (the same script the local
+   `meilisearch-init` Compose service runs) needs to run *from inside* the
+   cluster instead of against `localhost` — `meilisearch-init-job.yaml` runs
+   it as a one-off Job against `http://meilisearch-service:7700`:
+   ```bash
+   kubectl create configmap meilisearch-init-script \
+     --from-file=init-meilisearch.sh=../../services/scripts/init-meilisearch.sh
+   kubectl apply -f meilisearch/meilisearch-init-job.yaml
+   kubectl wait --for=condition=complete job/meilisearch-init --timeout=120s
+   kubectl logs job/meilisearch-init
+   ```
+   To re-run after editing the script (e.g. adding an index), delete the Job
+   and the ConfigMap first — `kubectl apply` can't update either in place
+   since Job specs are immutable after creation:
+   ```bash
+   kubectl delete job meilisearch-init --ignore-not-found
+   kubectl delete configmap meilisearch-init-script --ignore-not-found
+   # then re-run the create/apply/wait steps above
    ```
 
 If you're migrating an existing cluster that previously had Meilisearch

@@ -5,8 +5,8 @@ PASS=$(terraform output -raw administrator_password)
 cd ..
 
 npx mongosh "mongodb+srv://${HOST}/?tls=true&authMechanism=SCRAM-SHA-256&retrywrites=false" \
-  --username "$USER" \
-  --password "$PASS" \
+  --username="$USER" \
+  --password="$PASS" \
   --eval '
 db = db.getSiblingDB("bible_sg");
 db.runCommand({
@@ -22,4 +22,21 @@ db.runCommand({
     }
   }]
 });
+'
+
+cd iac
+HOST=$(terraform output -raw mongo_connection_string | sed -E 's#mongodb\+srv://[^@]*@([^/?]+).*#\1#')
+USER=$(terraform output -raw administrator_username)
+PASS=$(terraform output -raw administrator_password)
+cd ..
+
+npx mongosh "mongodb+srv://${HOST}/?tls=true&authMechanism=SCRAM-SHA-256&retrywrites=false" \
+  --username="$USER" \
+  --password="$PASS" \
+  --eval '
+db = db.getSiblingDB("bible_sg");
+db.verses.createIndex({ entity_slugs: 1 });
+db.entities.createIndex({ slug: 1 }, { unique: true });
+db.relations.createIndex({ source_slug: 1 });
+db.relations.createIndex({ source_entity_id: 1 });
 '

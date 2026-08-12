@@ -1,0 +1,119 @@
+name: Deploy Kubernetes Infra
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.pipelines/deployment/**'
+      - 'services/scripts/init-meilisearch.sh'
+      - '.github/workflows/deploy-infra.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-infra
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .pipelines/deployment
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AKS_AUTOMATION_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials \
+            --resource-group "${{ vars.AKS_RESOURCE_GROUP }}" \
+            --name "${{ vars.AKS_CLUSTER_NAME }}" \
+            --overwrite-existing
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      # --- One-time cluster bootstrap (.pipelines/deployment/README.md) ---
+      # Safe to re-run: helm upgrade --install and kubectl apply are both
+      # idempotent no-ops when nothing changed.
+
+      - name: Install/upgrade ingress-nginx
+        run: |
+          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+          helm repo update
+          helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+            --namespace ingress-nginx --create-namespace \
+            --set controller.service.annotations."service\.beta\.kubernetes\.io/azure-load-balancer-health-probe-request-path"=/healthz \
+            --wait --timeout 5m
+
+      - name: Install/upgrade cert-manager
+        run: |
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo update
+          helm upgrade --install cert-manager jetstack/cert-manager \
+            --namespace cert-manager --create-namespace \
+            --set crds.enabled=true \
+            --wait --timeout 5m
+
+      - name: Apply ClusterIssuer
+        run: kubectl apply -f cluster/letsencrypt-cluster-issuer.yaml
+
+      # DNS (fide.rrahajason.space -> ingress-nginx external IP) is a
+      # one-off manual step, not automated here — see README.
+
+      # --- Meilisearch ---
+
+      - name: Create/update meilisearch-secret
+        run: |
+          kubectl create secret generic meilisearch-secret \
+            --from-literal=MEILI_MASTER_KEY="${{ secrets.MEILISEARCH_MASTER_KEY }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy Meilisearch
+        run: |
+          kubectl apply -f meilisearch/meili-storage.yml
+          kubectl apply -f meilisearch/meilisearch-deployment.yaml
+          kubectl rollout restart deployment/meilisearch
+          kubectl rollout status deployment/meilisearch --timeout=180s
+
+      - name: Initialize Meilisearch indexes
+        run: |
+          kubectl create configmap meilisearch-init-script \
+            --from-file=init-meilisearch.sh=../../services/scripts/init-meilisearch.sh \
+            --dry-run=client -o yaml | kubectl apply -f -
+          kubectl delete job meilisearch-init --ignore-not-found
+          kubectl apply -f meilisearch/meilisearch-init-job.yaml
+          kubectl wait --for=condition=complete job/meilisearch-init --timeout=120s
+          kubectl logs job/meilisearch-init
+
+      # --- search-engine ---
+      # Only applies config/networking here; the image itself is managed by
+      # search-engine-docker.yml's own `deploy` job on app-code pushes.
+
+      - name: Create/update search-engine-secret
+        run: |
+          kubectl create secret generic search-engine-secret \
+            --from-literal=DATABASE_URL="${{ secrets.MONGO_DATABASE_URL }}" \
+            --from-literal=OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
+            --from-literal=GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
+            --from-literal=GITHUB_TOKEN="${{ secrets.APP_GITHUB_TOKEN }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy search-engine
+        run: |
+          kubectl apply -f search-engine/search-engine-config.yaml
+          kubectl apply -f search-engine/search-engine-deployment.yaml
+          kubectl apply -f search-engine/search-engine-ingress.yaml
+          kubectl rollout restart deployment/search-engine
+          kubectl rollout status deployment/search-engine --timeout=180s
