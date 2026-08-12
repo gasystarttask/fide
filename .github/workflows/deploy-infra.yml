@@ -33,10 +33,17 @@ jobs:
           client-id: ${{ vars.AKS_AUTOMATION_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          # This identity's only role assignment is scoped to the AKS
+          # resource itself (not the subscription/resource group), which
+          # makes azure/login's default subscription-listing step fail with
+          # "No subscriptions found" — skip it, since every az/kubectl
+          # command below already targets --resource-group/--name directly.
+          allow-no-subscriptions: true
 
       - name: Get AKS credentials
         run: |
           az aks get-credentials \
+            --subscription "${{ vars.AZURE_SUBSCRIPTION_ID }}" \
             --resource-group "${{ vars.AKS_RESOURCE_GROUP }}" \
             --name "${{ vars.AKS_CLUSTER_NAME }}" \
             --overwrite-existing
