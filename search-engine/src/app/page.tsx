@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
@@ -13,6 +13,8 @@ import { parseRetryAfterSeconds, extractRetryAfterFromMessage } from "./services
 import { getMessageText, renderMessageWithCitations } from "./services/messageFormatting";
 import { buildRelationSnippets } from "./services/relationSnippets";
 import { extractGraphEntityQuery } from "./services/graphQuery";
+
+const NEAR_BOTTOM_THRESHOLD_PX = 120;
 
 export default function Home() {
   const [locale, setLocale] = useState<Locale>("en");
@@ -56,6 +58,26 @@ export default function Home() {
   );
 
   const { messages, sendMessage, status, error, clearError } = useChat({ transport });
+
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const isNearBottomRef = useRef(true);
+
+  function handleScrollContainerScroll() {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    isNearBottomRef.current = distanceFromBottom < NEAR_BOTTOM_THRESHOLD_PX;
+  }
+
+  const lastMessageText = messages.length > 0 ? getMessageText(messages[messages.length - 1]) : "";
+
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el || !isNearBottomRef.current) return;
+
+    el.scrollTop = el.scrollHeight;
+  }, [messages.length, lastMessageText, status]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -181,6 +203,7 @@ export default function Home() {
     if (!trimmed || !canSubmit) return;
 
     setDraft("");
+    isNearBottomRef.current = true;
     await sendMessage({ text: trimmed });
     await loadGraphPreview(trimmed);
   }
@@ -190,6 +213,7 @@ export default function Home() {
     if (!query || !canSubmit) return;
 
     setDraft("");
+    isNearBottomRef.current = true;
     await sendMessage({ text: query });
     await loadGraphPreview(query);
   }
@@ -203,7 +227,11 @@ export default function Home() {
             <p className="mt-1 text-sm text-stone-600">{uiText.subtitle}</p>
           </header>
 
-          <div className="flex-1 overflow-y-auto pr-1">
+          <div
+            ref={scrollContainerRef}
+            onScroll={handleScrollContainerScroll}
+            className="flex-1 overflow-y-auto pr-1"
+          >
             <ChatMessageList
               cooldownSeconds={cooldownSeconds}
               uiText={uiText}
