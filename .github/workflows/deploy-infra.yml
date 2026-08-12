@@ -68,9 +68,17 @@ jobs:
         run: |
           helm repo add jetstack https://charts.jetstack.io
           helm repo update
+          # --force works around a known AKS quirk: its built-in
+          # "admissionsenforcer" continuously patches every webhook
+          # config's namespaceSelector to exclude AKS-internal namespaces,
+          # which conflicts with Helm's own field ownership on the same
+          # field. --force falls back to delete+recreate instead of a
+          # conflicting patch; AKS just re-patches the selector back in
+          # right after, which is expected. See Azure/AKS#4002.
           helm upgrade --install cert-manager jetstack/cert-manager \
             --namespace cert-manager --create-namespace \
             --set crds.enabled=true \
+            --force \
             --wait --timeout 5m
 
       - name: Apply ClusterIssuer
