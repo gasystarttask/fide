@@ -27,6 +27,8 @@ const VERSE_PROJECTION = {
   metadata: 1,
 } as const;
 
+const QUERY_MAX_TIME_MS = 500;
+
 function escapeRegex(input: string): string {
   return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -84,7 +86,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (parsed) {
       doc = await verses.findOne(
         { book: parsed.book, chapter: parsed.chapter, verse: parsed.verse },
-        { projection: VERSE_PROJECTION }
+        { projection: VERSE_PROJECTION, maxTimeMS: QUERY_MAX_TIME_MS }
       );
     }
 
@@ -93,7 +95,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       for (const candidate of candidates) {
         doc = await verses.findOne(
           { $or: [{ reference: candidate }, { id: candidate }] },
-          { projection: VERSE_PROJECTION }
+          { projection: VERSE_PROJECTION, maxTimeMS: QUERY_MAX_TIME_MS }
         );
         if (doc?.text) break;
       }
@@ -115,7 +117,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
             ],
           }
         : { $or: idOrRefClauses };
-      doc = await verses.findOne(fallbackQuery, { projection: VERSE_PROJECTION });
+      doc = await verses.findOne(fallbackQuery, { projection: VERSE_PROJECTION, maxTimeMS: QUERY_MAX_TIME_MS });
     }
 
     if (!doc?.text) {
