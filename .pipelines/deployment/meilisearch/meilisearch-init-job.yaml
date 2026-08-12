@@ -1,0 +1,34 @@
+# One-off index-initialization job (mirrors services/compose.yml's local
+# `meilisearch-init` service) — runs services/scripts/init-meilisearch.sh
+# against the cluster-internal meilisearch-service, since Meilisearch has
+# no public ingress to reach from outside the cluster anymore.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: meilisearch-init
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: init
+        image: curlimages/curl:8.12.1
+        command: ["/bin/sh", "/scripts/init-meilisearch.sh"]
+        env:
+        - name: MEILISEARCH_URL
+          value: "http://meilisearch-service:7700"
+        - name: MEILISEARCH_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: meilisearch-secret
+              key: MEILI_MASTER_KEY
+        volumeMounts:
+        - name: init-script
+          mountPath: /scripts
+          readOnly: true
+      volumes:
+      - name: init-script
+        configMap:
+          name: meilisearch-init-script
+          defaultMode: 0755
