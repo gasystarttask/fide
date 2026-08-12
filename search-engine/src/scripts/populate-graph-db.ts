@@ -369,6 +369,7 @@ async function ensureIndexes(db: Db): Promise<void> {
   await ensureIndex(verses, { book: 1, chapter: 1, verse: 1 }, { name: 'ix_verses_book_chapter_verse' })
   await ensureIndex(entities, { slug: 1 }, { unique: true, name: 'ux_entities_slug' })
   await ensureIndex(entities, { name: 1 }, { name: 'ix_entities_name' })
+  await ensureIndex(entities, { aliases: 1 }, { name: 'ix_entities_aliases' })
   await ensureIndex(relations, { source_slug: 1 }, { name: 'ix_rel_source_slug' })
   await ensureIndex(relations, { source_entity_id: 1 }, { name: 'ix_rel_source_entity_id' })
   await ensureIndex(relations, { target_slug: 1 }, { name: 'ix_rel_target_slug' })
