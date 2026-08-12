@@ -15,8 +15,7 @@ db.runCommand({
     key: { embedding: "cosmosSearch" },
     name: "vector_idx",
     cosmosSearchOptions: {
-      kind: "vector-ivf",
-      numLists: 1,
+      kind: "vector-hnsw",
       similarity: "COS",
       dimensions: 1536
     }
@@ -40,6 +39,8 @@ db.verses.createIndex({ reference: 1 }, { name: "ix_verses_reference" });
 db.verses.createIndex({ id: 1 }, { name: "ix_verses_id" });
 db.verses.createIndex({ book: 1, chapter: 1, verse: 1 }, { name: "ix_verses_book_chapter_verse" });
 db.entities.createIndex({ slug: 1 }, { unique: true });
+db.entities.createIndex({ name: 1 }, { name: "ix_entities_name" });
+db.entities.createIndex({ aliases: 1 }, { name: "ix_entities_aliases" });
 db.relations.createIndex({ source_slug: 1 });
 db.relations.createIndex({ source_entity_id: 1 });
 '
