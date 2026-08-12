@@ -77,14 +77,15 @@ Needed once per cluster, before deploying any app manifests. Requires
    helm repo update
    helm upgrade --install cert-manager jetstack/cert-manager \
      --namespace cert-manager --create-namespace --set crds.enabled=true \
-     --force
+     --force-conflicts
    ```
-   `--force` works around a known AKS quirk: its built-in
+   `--force-conflicts` works around a known AKS quirk: its built-in
    "admissionsenforcer" continuously patches every webhook config's
    `namespaceSelector` to exclude AKS-internal namespaces, which conflicts
-   with Helm's own field ownership on that same field
-   ([Azure/AKS#4002](https://github.com/Azure/AKS/issues/4002)). `--force`
-   falls back to delete+recreate instead of a conflicting patch; AKS just
+   with Helm's server-side-apply field ownership on that same field (Helm 4
+   defaults to SSA; the old `--force`/`--force-replace` is incompatible with
+   it — see [Azure/AKS#4002](https://github.com/Azure/AKS/issues/4002)).
+   `--force-conflicts` lets Helm's apply win the conflict; AKS just
    re-patches the selector back in right after, which is expected.
 
 3. **ClusterIssuer** (this repo's `cluster/letsencrypt-cluster-issuer.yaml`):
