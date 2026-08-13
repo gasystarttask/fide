@@ -7,7 +7,6 @@ type SourceSidebarProps = {
   uiText: UIText;
   selectedCitation: string | null;
   previewLoading: boolean;
-  previewError: string | null;
   preview: VersePreview | null;
   graphLoading: boolean;
   graphError: string | null;
@@ -22,7 +21,6 @@ export function SourceSidebar({
   uiText,
   selectedCitation,
   previewLoading,
-  previewError,
   preview,
   graphLoading,
   graphError,
@@ -67,10 +65,6 @@ export function SourceSidebar({
         </div>
       ) : null}
 
-      {previewError ? (
-        <p className="mt-3 rounded-lg border border-danger/30 bg-danger/10 p-2 text-b4 text-danger">{previewError}</p>
-      ) : null}
-
       {preview ? (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
@@ -95,10 +89,6 @@ export function SourceSidebar({
               <div className="mt-2 h-3 w-full animate-pulse rounded bg-primary/10" />
               <div className="mt-2 h-3 w-5/6 animate-pulse rounded bg-primary/10" />
             </div>
-          ) : null}
-
-          {graphError ? (
-            <p className="rounded-lg border border-danger/30 bg-danger/10 p-2 text-b4 text-danger">{graphError}</p>
           ) : null}
 
           {!graphLoading && !graphError && entityFacts.length === 0 ? (

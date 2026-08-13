@@ -12,7 +12,6 @@ describe("SourceSidebar integration", () => {
         uiText={COPY.en}
         selectedCitation="John 3:16"
         previewLoading={false}
-        previewError={null}
         preview={{
           reference: "John 3:16",
           text: "For God so loved the world...",
@@ -51,7 +50,6 @@ describe("SourceSidebar integration", () => {
         uiText={COPY.en}
         selectedCitation={null}
         previewLoading={false}
-        previewError={null}
         preview={null}
         graphLoading={false}
         graphError={null}
@@ -75,7 +73,6 @@ describe("SourceSidebar integration", () => {
         uiText={COPY.en}
         selectedCitation={null}
         previewLoading={false}
-        previewError={null}
         preview={null}
         graphLoading={false}
         graphError={null}
