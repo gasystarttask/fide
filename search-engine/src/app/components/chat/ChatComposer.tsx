@@ -1,5 +1,6 @@
 import type { FormEvent } from "react";
 import type { UIText } from "../../types/ui";
+import { Button } from "../ui/Button";
 
 type ChatComposerProps = {
   draft: string;
@@ -30,17 +31,17 @@ export function ChatComposer({
         placeholder={uiText.inputPlaceholder}
         className="min-w-0 flex-1 rounded-lg border border-border-strong bg-surface-alt px-3 py-2 text-b3 text-main outline-none placeholder:text-dark-gray ring-primary focus:ring"
       />
-      <button
+      <Button
         type="submit"
         disabled={!canSubmit || !draft.trim()}
-        className="rounded-lg bg-primary px-4 py-2 text-b3 font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-border-strong disabled:text-medium-gray"
+        loading={cooldownSeconds === 0 && (isStreaming || isRetrieving)}
       >
         {cooldownSeconds > 0
           ? uiText.retryCta(cooldownSeconds)
           : isStreaming || isRetrieving
             ? uiText.inProgressCta
             : uiText.sendCta}
-      </button>
+      </Button>
     </form>
   );
 }

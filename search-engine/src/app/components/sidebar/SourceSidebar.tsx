@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import type { EntityFact, UIText, VersePreview } from "../../types/ui";
+import { Button } from "../ui/Button";
 
 type SourceSidebarProps = {
   uiText: UIText;
@@ -93,15 +94,17 @@ export function SourceSidebar({
               <p className="text-xs uppercase tracking-wide text-dark-gray">{uiText.entityChips}</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {entityFacts.map((entity) => (
-                  <button
+                  <Button
                     key={entity.slug}
                     type="button"
+                    variant="ghost"
+                    tone="accent"
+                    size="sm"
                     disabled={!canSubmit}
                     onClick={() => onEntityChipClick(entity.name)}
-                    className="rounded-full border border-accent/40 bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {entity.name}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>

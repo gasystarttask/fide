@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import type { ReactNode } from "react";
 import type { ChatPart, RenderMessageWithCitations } from "../types/ui";
+import { Button } from "../components/ui/Button";
 
 const TOKEN_REGEX = /(\[([^\]]+\d+:\d+(?:-\d+)?)\]|\(([^\)]+\d+:\d+(?:-\d+)?)\)|\*\*([^\*]+)\*\*)/g;
 
@@ -70,13 +71,15 @@ export const renderMessageWithCitations: RenderMessageWithCitations = (
         {references.map((reference, refIndex) => (
           <Fragment key={`cite-item-${reference}-${refIndex}`}>
             {refIndex > 0 ? ", " : null}
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              tone="primary"
+              size="sm"
               onClick={() => onCitationClick(reference)}
-              className="rounded-md border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/20"
             >
               {reference}
-            </button>
+            </Button>
           </Fragment>
         ))}
       </Fragment>
