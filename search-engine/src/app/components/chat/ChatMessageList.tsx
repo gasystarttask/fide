@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import type { ChatMessage, RenderMessageWithCitations, UIText } from "../../types/ui";
 import { Button } from "../ui/Button";
 import { BotIcon, ThumbsDownIcon, ThumbsUpIcon, UserIcon } from "../ui/icons";
+import { ChatEmptyState } from "./ChatEmptyState";
 
 type ChatMessageListProps = {
   cooldownSeconds: number;
@@ -10,8 +11,10 @@ type ChatMessageListProps = {
   messages: ChatMessage[];
   isRetrieving: boolean;
   isStreaming: boolean;
+  canSubmit: boolean;
   errorMessage?: string;
   onCitationClick: (reference: string) => void;
+  onSuggestionClick: (prompt: string) => void;
   renderMessageWithCitations: RenderMessageWithCitations;
   getMessageText: (message: { parts?: { type?: string; text?: string }[]; content?: string }) => string;
 };
@@ -24,8 +27,10 @@ export function ChatMessageList({
   messages,
   isRetrieving,
   isStreaming,
+  canSubmit,
   errorMessage,
   onCitationClick,
+  onSuggestionClick,
   renderMessageWithCitations,
   getMessageText,
 }: ChatMessageListProps) {
@@ -41,6 +46,14 @@ export function ChatMessageList({
       }
       return next;
     });
+  }
+
+  if (messages.length === 0 && !isRetrieving && !isStreaming && cooldownSeconds === 0 && !errorMessage) {
+    return (
+      <div className="h-full">
+        <ChatEmptyState uiText={uiText} canSubmit={canSubmit} onSuggestionClick={onSuggestionClick} />
+      </div>
+    );
   }
 
   return (

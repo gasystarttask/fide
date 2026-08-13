@@ -64,6 +64,24 @@ export function CloseIcon(props: IconProps) {
   );
 }
 
+export function SendIcon(props: IconProps) {
+  return (
+    <svg {...baseProps(props)}>
+      <path d="M4 20l16-8L4 4l2 8-2 8Z" />
+      <path d="M6 12h14" />
+    </svg>
+  );
+}
+
+export function StopIcon(props: IconProps) {
+  return (
+    <svg {...baseProps(props)}>
+      <circle cx="12" cy="12" r="9" />
+      <rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export function SourcesIcon(props: IconProps) {
   return (
     <svg {...baseProps(props)}>
