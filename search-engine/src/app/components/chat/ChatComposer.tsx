@@ -1,4 +1,5 @@
-import type { FormEvent } from "react";
+import { useEffect, useRef } from "react";
+import type { FormEvent, KeyboardEvent } from "react";
 import type { UIText } from "../../types/ui";
 import { Button } from "../ui/Button";
 
@@ -23,14 +24,36 @@ export function ChatComposer({
   isRetrieving,
   uiText,
 }: ChatComposerProps) {
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [draft]);
+
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      event.currentTarget.form?.requestSubmit();
+    }
+  }
+
   return (
-    <form className="mt-4 shrink-0 flex flex-col gap-2 border-t border-border pt-4 sm:flex-row" onSubmit={onSubmit}>
-      <input
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        placeholder={uiText.inputPlaceholder}
-        className="min-w-0 flex-1 rounded-lg border border-border-strong bg-surface-alt px-3 py-2 text-b3 text-main outline-none placeholder:text-dark-gray ring-primary focus:ring"
-      />
+    <form className="mt-4 flex shrink-0 items-end gap-2 border-t border-border pt-4" onSubmit={onSubmit}>
+      <div className="flex min-w-0 flex-1 items-end rounded-2xl border border-border-strong bg-surface-alt px-3 py-2 transition-colors focus-within:border-primary">
+        <textarea
+          ref={textareaRef}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={uiText.inputPlaceholder}
+          rows={1}
+          className="max-h-32 flex-1 resize-none bg-transparent text-b3 text-main outline-none placeholder:text-dark-gray"
+        />
+      </div>
       <Button
         type="submit"
         disabled={!canSubmit || !draft.trim()}
