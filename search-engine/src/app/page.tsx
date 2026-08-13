@@ -9,6 +9,7 @@ import { ChatComposer } from "./components/chat/ChatComposer";
 import { SourceSidebar } from "./components/sidebar/SourceSidebar";
 import { Button } from "./components/ui/Button";
 import { SourcesIcon } from "./components/ui/icons";
+import { ToastStack, type ToastItem } from "./components/ui/ToastStack";
 import type { EntityFact, HybridSearchResponse, Locale, VersePreview } from "./types/ui";
 import { COPY, LOCALE_STORAGE_KEY, resolveLocale } from "./services/localization";
 import { parseRetryAfterSeconds, extractRetryAfterFromMessage } from "./services/rateLimitParser";
@@ -17,6 +18,7 @@ import { buildRelationSnippets } from "./services/relationSnippets";
 import { extractGraphEntityQuery } from "./services/graphQuery";
 
 const NEAR_BOTTOM_THRESHOLD_PX = 120;
+const TOAST_DURATION_MS = 6000;
 
 export default function Home() {
   const [locale, setLocale] = useState<Locale>("en");
@@ -24,12 +26,12 @@ export default function Home() {
   const [selectedCitation, setSelectedCitation] = useState<string | null>(null);
   const [preview, setPreview] = useState<VersePreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [entityFacts, setEntityFacts] = useState<EntityFact[]>([]);
   const [graphLoading, setGraphLoading] = useState(false);
   const [graphError, setGraphError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   const uiText = COPY[locale];
 
@@ -64,6 +66,35 @@ export default function Home() {
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const isNearBottomRef = useRef(true);
+  const toastIdRef = useRef(0);
+  const toastTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  function dismissToast(id: string) {
+    setToasts((current) => current.filter((toast) => toast.id !== id));
+
+    const timeoutId = toastTimeoutsRef.current.get(id);
+    if (timeoutId != null) {
+      clearTimeout(timeoutId);
+      toastTimeoutsRef.current.delete(id);
+    }
+  }
+
+  function pushToast(message: string) {
+    toastIdRef.current += 1;
+    const id = `toast-${toastIdRef.current}`;
+
+    setToasts((current) => [...current, { id, message }]);
+    toastTimeoutsRef.current.set(
+      id,
+      setTimeout(() => dismissToast(id), TOAST_DURATION_MS)
+    );
+  }
+
+  useEffect(() => {
+    return () => {
+      toastTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+    };
+  }, []);
 
   function handleScrollContainerScroll() {
     const el = scrollContainerRef.current;
@@ -171,6 +202,7 @@ export default function Home() {
       const message = e instanceof Error ? e.message : uiText.unknownError;
       setGraphError(message);
       setEntityFacts([]);
+      pushToast(message);
     } finally {
       setGraphLoading(false);
     }
@@ -179,7 +211,6 @@ export default function Home() {
   async function openCitation(reference: string) {
     setSelectedCitation(reference);
     setPreviewLoading(true);
-    setPreviewError(null);
     setIsSidebarOpen(true);
 
     try {
@@ -193,8 +224,8 @@ export default function Home() {
       setPreview(body);
     } catch (e) {
       const message = e instanceof Error ? e.message : uiText.unknownError;
-      setPreviewError(message);
       setPreview(null);
+      pushToast(message);
     } finally {
       setPreviewLoading(false);
     }
@@ -224,6 +255,8 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-background px-3 py-6 text-main sm:px-6">
+      <ToastStack toasts={toasts} onDismiss={dismissToast} dismissLabel={uiText.dismissNotification} />
+
       <div className="mx-auto grid w-full max-w-6xl items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="flex h-[calc(100vh-3rem)] min-h-135 flex-col overflow-hidden rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
           <header className="mb-4 flex shrink-0 items-start justify-between gap-2 border-b border-border pb-3">
@@ -290,7 +323,6 @@ export default function Home() {
             uiText={uiText}
             selectedCitation={selectedCitation}
             previewLoading={previewLoading}
-            previewError={previewError}
             preview={preview}
             graphLoading={graphLoading}
             graphError={graphError}
