@@ -59,8 +59,8 @@ export type UIText = {
   suggestionPrompts: string[];
   inputPlaceholder: string;
   retryCta: (seconds: number) => string;
-  inProgressCta: string;
   sendCta: string;
+  stopGenerating: string;
   sourcePreviewTitle: string;
   sourcePreviewHint: string;
   sourcesToggle: string;
