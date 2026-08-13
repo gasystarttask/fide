@@ -65,6 +65,7 @@ export type UIText = {
   sourcePreviewHint: string;
   sourcesToggle: string;
   closeSidebar: string;
+  dismissNotification: string;
   citationLabel: string;
   referenceLabel: string;
   versionLabel: string;
