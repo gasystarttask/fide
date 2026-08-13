@@ -238,8 +238,10 @@ export default function Home() {
               messages={messages}
               isRetrieving={isRetrieving}
               isStreaming={isStreaming}
+              canSubmit={canSubmit}
               errorMessage={error?.message}
               onCitationClick={openCitation}
+              onSuggestionClick={onEntityChipClick}
               renderMessageWithCitations={renderMessageWithCitations}
               getMessageText={getMessageText}
             />

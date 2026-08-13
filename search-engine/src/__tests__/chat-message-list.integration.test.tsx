@@ -18,7 +18,9 @@ describe("ChatMessageList integration", () => {
         ]}
         isRetrieving={true}
         isStreaming={true}
+        canSubmit={false}
         onCitationClick={onCitationClick}
+        onSuggestionClick={vi.fn()}
         renderMessageWithCitations={renderMessageWithCitations}
         getMessageText={getMessageText}
       />
@@ -45,7 +47,9 @@ describe("ChatMessageList integration", () => {
         ]}
         isRetrieving={false}
         isStreaming={false}
+        canSubmit={true}
         onCitationClick={vi.fn()}
+        onSuggestionClick={vi.fn()}
         renderMessageWithCitations={renderMessageWithCitations}
         getMessageText={getMessageText}
       />
@@ -67,5 +71,66 @@ describe("ChatMessageList integration", () => {
 
     fireEvent.click(notHelpfulButtons[0]);
     expect(notHelpfulButtons[0]).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("shows the empty state with suggestion chips when there are no messages yet", () => {
+    const onSuggestionClick = vi.fn();
+
+    render(
+      <ChatMessageList
+        cooldownSeconds={0}
+        uiText={COPY.en}
+        messages={[]}
+        isRetrieving={false}
+        isStreaming={false}
+        canSubmit={true}
+        onCitationClick={vi.fn()}
+        onSuggestionClick={onSuggestionClick}
+        renderMessageWithCitations={renderMessageWithCitations}
+        getMessageText={getMessageText}
+      />
+    );
+
+    expect(screen.getByText(COPY.en.emptyStateTitle)).toBeInTheDocument();
+
+    const firstPrompt = COPY.en.suggestionPrompts[0];
+    fireEvent.click(screen.getByRole("button", { name: firstPrompt }));
+    expect(onSuggestionClick).toHaveBeenCalledWith(firstPrompt);
+  });
+
+  it("hides the empty state once a message or in-flight request exists", () => {
+    const { rerender } = render(
+      <ChatMessageList
+        cooldownSeconds={0}
+        uiText={COPY.en}
+        messages={[]}
+        isRetrieving={true}
+        isStreaming={false}
+        canSubmit={false}
+        onCitationClick={vi.fn()}
+        onSuggestionClick={vi.fn()}
+        renderMessageWithCitations={renderMessageWithCitations}
+        getMessageText={getMessageText}
+      />
+    );
+
+    expect(screen.queryByText(COPY.en.emptyStateTitle)).not.toBeInTheDocument();
+
+    rerender(
+      <ChatMessageList
+        cooldownSeconds={0}
+        uiText={COPY.en}
+        messages={[{ id: "u1", role: "user", content: "Who is Jesus?" }]}
+        isRetrieving={false}
+        isStreaming={false}
+        canSubmit={true}
+        onCitationClick={vi.fn()}
+        onSuggestionClick={vi.fn()}
+        renderMessageWithCitations={renderMessageWithCitations}
+        getMessageText={getMessageText}
+      />
+    );
+
+    expect(screen.queryByText(COPY.en.emptyStateTitle)).not.toBeInTheDocument();
   });
 });
