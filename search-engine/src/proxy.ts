@@ -1,4 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { auth } from "@search/lib/auth";
 import { checkRateLimit } from "@search/lib/rate-limit";
 
 function getClientIp(req: NextRequest): string {
@@ -7,8 +9,13 @@ function getClientIp(req: NextRequest): string {
   return forwarded.split(",")[0]?.trim() || "unknown";
 }
 
-export function proxy(req: NextRequest) {
-  if (!req.nextUrl.pathname.startsWith("/api")) {
+// next-auth's own OAuth flow endpoints must stay reachable without a session.
+const PUBLIC_API_PREFIX = "/api/auth";
+
+export const proxy = auth((req) => {
+  const { pathname } = req.nextUrl;
+
+  if (!pathname.startsWith("/api")) {
     return NextResponse.next();
   }
 
@@ -28,13 +35,17 @@ export function proxy(req: NextRequest) {
     );
   }
 
+  if (!pathname.startsWith(PUBLIC_API_PREFIX) && !req.auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-ratelimit-remaining", String(rate.remaining));
   requestHeaders.set("x-ratelimit-reset", String(rate.resetAt));
   return NextResponse.next({
     request: { headers: requestHeaders },
   });
-}
+});
 
 export const config = {
   matcher: ["/api/:path*"],

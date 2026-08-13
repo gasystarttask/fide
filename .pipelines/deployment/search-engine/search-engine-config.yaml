@@ -8,6 +8,18 @@ data:
   # Cluster-internal — Meilisearch has no public ingress, only a ClusterIP Service.
   MEILISEARCH_URL: "http://meilisearch-service:7700"
 
+  # Auth (Keycloak SSO) — AUTH_URL must be this app's own public origin
+  # (needed for next-auth's redirect/callback URL construction), and
+  # KEYCLOAK_ISSUER must be Keycloak's public URL, not an internal Service
+  # address — see .pipelines/deployment/README.md's "Deploying Keycloak"
+  # section for why.
+  AUTH_TRUST_HOST: "true"
+  AUTH_URL: "https://fide.rrahajason.space"
+  KEYCLOAK_ISSUER: "https://auth.rrahajason.space/realms/bible-sg"
+  # Not secret — the client secret (below, in search-engine-secret) is what
+  # actually needs protecting.
+  KEYCLOAK_CLIENT_ID: "search-engine"
+
   LLM_DEFAULT_PROVIDER: "openai"
   LLM_CHAT_PROVIDER: "openai"
   LLM_ROUTER_PROVIDER: "openai"
