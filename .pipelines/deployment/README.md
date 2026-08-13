@@ -30,6 +30,8 @@ Actions → Secrets — these genuinely are sensitive, unlike the `AKS_*`/
 | `OPENAI_API_KEY` | `search-engine-secret` |
 | `GEMINI_API_KEY` | `search-engine-secret` |
 | `APP_GITHUB_TOKEN` | `search-engine-secret`'s `GITHUB_TOKEN` (named `APP_*` to avoid colliding with the `GITHUB_TOKEN` GitHub injects automatically into every workflow run) |
+| `KEYCLOAK_DB_PASSWORD` | `keycloak-db-secret` — pick a fresh value, e.g. `openssl rand -hex 32` |
+| `KEYCLOAK_ADMIN_PASSWORD` | `keycloak-secret`'s bootstrap admin password — strong, unique value |
 
 Since the workflow re-applies these secrets from CI on every run, they
 become the source of truth going forward — changing a value here and
@@ -93,13 +95,15 @@ Needed once per cluster, before deploying any app manifests. Requires
    kubectl apply -f cluster/letsencrypt-cluster-issuer.yaml
    ```
 
-4. **DNS.** The only public hostname now is the search-engine app,
-   `fide.rrahajason.space` (Meilisearch is cluster-internal — see below).
-   Add an `A` record for it in your DNS provider (Vercel, for
-   `rrahajason.space`) pointing at the ingress controller's external IP from
-   step 1. Let's Encrypt's HTTP-01 challenge (used by the ClusterIssuer above)
-   requires this to resolve correctly *before* an Ingress referencing it is
-   applied, or issuance will fail/retry.
+4. **DNS.** The public hostnames are the search-engine app,
+   `fide.rrahajason.space`, and the Keycloak identity provider,
+   `auth.rrahajason.space` (Meilisearch and Keycloak's Postgres are
+   cluster-internal — see below). Add an `A` record for each in your DNS
+   provider (Vercel, for `rrahajason.space`) pointing at the ingress
+   controller's external IP from step 1. Let's Encrypt's HTTP-01 challenge
+   (used by the ClusterIssuer above) requires this to resolve correctly
+   *before* an Ingress referencing it is applied, or issuance will
+   fail/retry.
 
 ## Deploying Meilisearch
 
@@ -161,6 +165,54 @@ kubectl create secret generic meilisearch-secret \
 kubectl rollout restart deployment/meilisearch
 kubectl rollout restart deployment/search-engine
 ```
+
+## Deploying Keycloak
+
+Keycloak is the self-hosted SSO identity provider for search-engine (issue
+#127), backed by its own Postgres pod + PVC — **not** the embedded dev-mode
+store, since `aks-stop-start.yml`'s nightly stop/start recreates pods on
+every restart and would wipe realms/users/clients otherwise. Unlike
+Meilisearch, it needs a public Ingress (`auth.rrahajason.space`) since
+browsers must reach it directly during login.
+
+1. Create the secrets (never commit real values):
+   ```bash
+   kubectl create secret generic keycloak-db-secret \
+     --from-literal=POSTGRES_PASSWORD='<your-generated-password>'
+   kubectl create secret generic keycloak-secret \
+     --from-literal=KC_BOOTSTRAP_ADMIN_PASSWORD='<your-generated-password>'
+   ```
+2. Apply the manifests:
+   ```bash
+   kubectl apply -f keycloak/keycloak-db-storage.yml
+   kubectl apply -f keycloak/keycloak-db-deployment.yaml
+   kubectl apply -f keycloak/keycloak-deployment.yaml
+   kubectl apply -f keycloak/keycloak-ingress.yaml
+   ```
+3. Once DNS has propagated and the cert is issued
+   (`kubectl describe certificate keycloak-tls`), the admin console is at
+   `https://auth.rrahajason.space/admin`, username `kcadmin`.
+4. **Immediately after first login:** create a dedicated, permanent realm
+   admin user and disable the temporary `kcadmin` bootstrap account —
+   `KC_BOOTSTRAP_ADMIN_*` is meant to be provisional. From that point on,
+   rotate the admin password via the Admin Console/`kcadm.sh`, **not** by
+   changing the `KEYCLOAK_ADMIN_PASSWORD` GitHub secret — unlike
+   Meilisearch's master key, the bootstrap env var only takes effect once,
+   against an empty admin table, and re-running this workflow after that has
+   no effect.
+5. Create the realm and OIDC client that `search-engine` will authenticate
+   against (realm e.g. `bible-sg`, confidential client, redirect URIs for
+   `https://fide.rrahajason.space/*` and, for local development,
+   `http://localhost:3000/*`).
+
+### Cost delta
+
+$0 managed-service cost — Postgres and Keycloak both run self-hosted in the
+existing cluster rather than as managed Azure services. The only recurring
+additions are the 5Gi `managed-csi` PVC (a few cents/month) and, if the node
+was resized (see `../../iac/README.md`), the marginal VM cost — capped by
+the existing stop/start automation to the same ~70 running hours/week as
+everything else on the cluster.
 
 ## Deploying search-engine
 
