@@ -63,6 +63,8 @@ export type UIText = {
   sendCta: string;
   sourcePreviewTitle: string;
   sourcePreviewHint: string;
+  sourcesToggle: string;
+  closeSidebar: string;
   citationLabel: string;
   referenceLabel: string;
   versionLabel: string;

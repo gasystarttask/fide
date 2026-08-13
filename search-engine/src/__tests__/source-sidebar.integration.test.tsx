@@ -31,6 +31,7 @@ describe("SourceSidebar integration", () => {
         relationSnippets={["Abraham is the father of Isaac."]}
         canSubmit={true}
         onEntityChipClick={onEntityChipClick}
+        onClose={vi.fn()}
       />
     );
 
@@ -58,10 +59,35 @@ describe("SourceSidebar integration", () => {
         relationSnippets={[]}
         canSubmit={true}
         onEntityChipClick={() => {}}
+        onClose={vi.fn()}
       />
     );
 
     expect(screen.getByText(COPY.en.sourcePreviewHint)).toBeInTheDocument();
     expect(screen.getByText(COPY.en.noEntities)).toBeInTheDocument();
+  });
+
+  it("calls onClose when the mobile close button is clicked", () => {
+    const onClose = vi.fn();
+
+    render(
+      <SourceSidebar
+        uiText={COPY.en}
+        selectedCitation={null}
+        previewLoading={false}
+        previewError={null}
+        preview={null}
+        graphLoading={false}
+        graphError={null}
+        entityFacts={[]}
+        relationSnippets={[]}
+        canSubmit={true}
+        onEntityChipClick={vi.fn()}
+        onClose={onClose}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: COPY.en.closeSidebar }));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
