@@ -260,12 +260,12 @@ export function ChatApp() {
 
       <div className="mx-auto grid w-full max-w-6xl items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="flex h-[calc(100vh-3rem)] min-h-135 flex-col overflow-hidden rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
-          <header className="mb-4 flex shrink-0 items-start justify-between gap-2 border-b border-border pb-3">
+          <header className="mb-4 flex flex-wrap items-start justify-between gap-2 border-b border-border pb-3">
             <div>
               <h1 className="text-h3 font-semibold tracking-tight text-main">{uiText.title}</h1>
               <p className="mt-1 text-b4 text-medium-gray">{uiText.subtitle}</p>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
               <Button
                 type="button"
                 variant="secondary"
@@ -278,7 +278,7 @@ export function ChatApp() {
               </Button>
               <form action={signOutAction}>
                 <Button type="submit" variant="secondary" size="sm">
-                  Sign out
+                  {uiText.signOut}
                 </Button>
               </form>
             </div>
