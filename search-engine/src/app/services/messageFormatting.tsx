@@ -73,7 +73,7 @@ export const renderMessageWithCitations: RenderMessageWithCitations = (
             <button
               type="button"
               onClick={() => onCitationClick(reference)}
-              className="rounded-md border border-indigo-300 bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-800 hover:bg-indigo-100"
+              className="rounded-md border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/20"
             >
               {reference}
             </button>

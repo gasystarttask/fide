@@ -30,10 +30,10 @@ export function ChatMessageList({
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl border border-red-200 bg-red-50 p-3"
+          className="rounded-xl border border-danger/30 bg-danger/10 p-3"
         >
-          <p className="text-sm font-medium text-red-800">{uiText.rateLimitTitle}</p>
-          <p className="mt-1 text-sm text-red-700">{uiText.rateLimitRetry(cooldownSeconds)}</p>
+          <p className="text-b4 font-medium text-danger">{uiText.rateLimitTitle}</p>
+          <p className="mt-1 text-b4 text-danger/90">{uiText.rateLimitRetry(cooldownSeconds)}</p>
         </motion.div>
       ) : null}
 
@@ -41,8 +41,8 @@ export function ChatMessageList({
         {messages.map((message) => {
           const isAssistant = message.role === "assistant";
           const bubbleClass = isAssistant
-            ? "border-indigo-200 bg-indigo-50"
-            : "border-stone-300 bg-stone-100";
+            ? "border-primary/25 bg-surface-alt"
+            : "border-border bg-surface";
           const text = getMessageText(message);
 
           return (
@@ -54,10 +54,10 @@ export function ChatMessageList({
               transition={{ duration: 0.2 }}
               className={`rounded-xl border p-3 ${bubbleClass}`}
             >
-              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-stone-500">
+              <p className="mb-1 text-b4 font-medium uppercase tracking-wide text-medium-gray">
                 {isAssistant ? uiText.roleAssistant : uiText.roleUser}
               </p>
-              <p className="whitespace-pre-wrap wrap-break-word leading-7">
+              <p className="whitespace-pre-wrap wrap-break-word text-b3 leading-7 text-main">
                 {isAssistant ? renderMessageWithCitations(text, onCitationClick) : text}
               </p>
             </motion.article>
@@ -69,18 +69,18 @@ export function ChatMessageList({
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="rounded-xl border border-indigo-200 bg-indigo-50 p-3"
+          className="rounded-xl border border-primary/25 bg-surface-alt p-3"
         >
-          <p className="text-sm font-medium text-indigo-900">{uiText.retrievingContext}</p>
-          <div className="mt-2 h-3 w-3/4 animate-pulse rounded bg-indigo-200" />
-          <div className="mt-2 h-3 w-5/6 animate-pulse rounded bg-indigo-100" />
+          <p className="text-b4 font-medium text-light-gray">{uiText.retrievingContext}</p>
+          <div className="mt-2 h-3 w-3/4 animate-pulse rounded bg-primary/20" />
+          <div className="mt-2 h-3 w-5/6 animate-pulse rounded bg-primary/10" />
         </motion.div>
       ) : null}
 
-      {isStreaming ? <p className="text-xs text-stone-500">{uiText.assistantStreaming}</p> : null}
+      {isStreaming ? <p className="text-b4 text-dark-gray">{uiText.assistantStreaming}</p> : null}
 
       {errorMessage ? (
-        <p className="rounded-lg border border-red-200 bg-red-50 p-2 text-sm text-red-700">{errorMessage}</p>
+        <p className="rounded-lg border border-danger/30 bg-danger/10 p-2 text-b4 text-danger">{errorMessage}</p>
       ) : null}
     </div>
   );
