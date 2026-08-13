@@ -1,26 +1,84 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens, synthesized from the reference Figma design system
+ * (near-black dark theme, purple/lavender accent). This is the app's
+ * one supported theme — dark-first, not a light/dark toggle.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0b0b10;
+  --surface: #15151d;
+  --surface-alt: #1c1c26;
+  --border: #2a2a35;
+  --border-strong: #3a3a48;
+
+  --primary: #a7a0f8;
+  --primary-hover: #beb8fa;
+  --primary-foreground: #14121f;
+  --accent: #7468fc;
+  --accent-foreground: #f5f3ff;
+
+  --text-main: #fafafa;
+  --text-light-gray: #bababa;
+  --text-medium-gray: #8692a6;
+  --text-dark-gray: #696f79;
+
+  --success: #34d399;
+  --success-foreground: #ecfdf5;
+  --danger: #f87171;
+  --danger-foreground: #fef2f2;
 }
 
 @theme inline {
   --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-main: var(--text-main);
+  --color-light-gray: var(--text-light-gray);
+  --color-medium-gray: var(--text-medium-gray);
+  --color-dark-gray: var(--text-dark-gray);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+
+  /* Heading scale (H1 58px -> H3 24px) */
+  --text-h1: 3.625rem;
+  --text-h1--line-height: 1.1;
+  --text-h1--font-weight: 600;
+  --text-h2: 2.5rem;
+  --text-h2--line-height: 1.15;
+  --text-h2--font-weight: 600;
+  --text-h3: 1.5rem;
+  --text-h3--line-height: 1.25;
+  --text-h3--font-weight: 600;
+
+  /* Body scale (B1 22px -> B4 14px) */
+  --text-b1: 1.375rem;
+  --text-b1--line-height: 1.5;
+  --text-b2: 1.125rem;
+  --text-b2--line-height: 1.5;
+  --text-b3: 1rem;
+  --text-b3--line-height: 1.5;
+  --text-b4: 0.875rem;
+  --text-b4--line-height: 1.45;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text-main);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }

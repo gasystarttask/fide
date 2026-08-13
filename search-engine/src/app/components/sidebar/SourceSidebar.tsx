@@ -29,68 +29,68 @@ export function SourceSidebar({
   onEntityChipClick,
 }: SourceSidebarProps) {
   return (
-    <aside className="rounded-2xl border border-stone-200 bg-white/90 p-4 shadow-sm sm:p-5 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-600">{uiText.sourcePreviewTitle}</h2>
+    <aside className="rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-5 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
+      <h2 className="text-b4 font-semibold uppercase tracking-wide text-medium-gray">{uiText.sourcePreviewTitle}</h2>
       {!selectedCitation ? (
-        <p className="mt-3 text-sm text-stone-500">{uiText.sourcePreviewHint}</p>
+        <p className="mt-3 text-b4 text-dark-gray">{uiText.sourcePreviewHint}</p>
       ) : null}
 
       {selectedCitation ? (
-        <div className="mt-3 rounded-xl border border-stone-200 bg-stone-50 p-3">
-          <p className="text-xs uppercase tracking-wide text-stone-500">{uiText.citationLabel}</p>
-          <p className="text-sm font-medium text-stone-800">{selectedCitation}</p>
+        <div className="mt-3 rounded-xl border border-border bg-surface-alt p-3">
+          <p className="text-xs uppercase tracking-wide text-dark-gray">{uiText.citationLabel}</p>
+          <p className="text-b4 font-medium text-main">{selectedCitation}</p>
         </div>
       ) : null}
 
       {previewLoading ? (
-        <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50 p-3">
-          <div className="h-3 w-20 animate-pulse rounded bg-indigo-200" />
-          <div className="mt-2 h-3 w-full animate-pulse rounded bg-indigo-100" />
-          <div className="mt-2 h-3 w-5/6 animate-pulse rounded bg-indigo-100" />
+        <div className="mt-3 rounded-xl border border-primary/25 bg-surface-alt p-3">
+          <div className="h-3 w-20 animate-pulse rounded bg-primary/20" />
+          <div className="mt-2 h-3 w-full animate-pulse rounded bg-primary/10" />
+          <div className="mt-2 h-3 w-5/6 animate-pulse rounded bg-primary/10" />
         </div>
       ) : null}
 
       {previewError ? (
-        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2 text-sm text-red-700">{previewError}</p>
+        <p className="mt-3 rounded-lg border border-danger/30 bg-danger/10 p-2 text-b4 text-danger">{previewError}</p>
       ) : null}
 
       {preview ? (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3"
+          className="mt-3 rounded-xl border border-success/30 bg-success/10 p-3"
         >
-          <p className="text-xs uppercase tracking-wide text-emerald-700">{uiText.referenceLabel}</p>
-          <p className="text-sm font-semibold text-emerald-900">{preview.reference}</p>
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-emerald-900">{preview.text}</p>
+          <p className="text-xs uppercase tracking-wide text-success">{uiText.referenceLabel}</p>
+          <p className="text-b4 font-semibold text-main">{preview.reference}</p>
+          <p className="mt-2 whitespace-pre-wrap text-b4 leading-6 text-light-gray">{preview.text}</p>
           {preview.metadata?.version ? (
-            <p className="mt-2 text-xs text-emerald-700">{uiText.versionLabel}: {preview.metadata.version}</p>
+            <p className="mt-2 text-xs text-success">{uiText.versionLabel}: {preview.metadata.version}</p>
           ) : null}
         </motion.div>
       ) : null}
 
-      <div className="mt-4 border-t border-stone-200 pt-4">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-stone-600">{uiText.graphTitle}</h3>
+      <div className="mt-4 border-t border-border pt-4">
+        <h3 className="text-b4 font-semibold uppercase tracking-wide text-medium-gray">{uiText.graphTitle}</h3>
         <div className="mt-3 lg:max-h-[42vh] lg:overflow-y-auto lg:pr-1">
           {graphLoading ? (
-            <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-3">
-              <div className="h-3 w-24 animate-pulse rounded bg-indigo-200" />
-              <div className="mt-2 h-3 w-full animate-pulse rounded bg-indigo-100" />
-              <div className="mt-2 h-3 w-5/6 animate-pulse rounded bg-indigo-100" />
+            <div className="rounded-xl border border-primary/25 bg-surface-alt p-3">
+              <div className="h-3 w-24 animate-pulse rounded bg-primary/20" />
+              <div className="mt-2 h-3 w-full animate-pulse rounded bg-primary/10" />
+              <div className="mt-2 h-3 w-5/6 animate-pulse rounded bg-primary/10" />
             </div>
           ) : null}
 
           {graphError ? (
-            <p className="rounded-lg border border-red-200 bg-red-50 p-2 text-sm text-red-700">{graphError}</p>
+            <p className="rounded-lg border border-danger/30 bg-danger/10 p-2 text-b4 text-danger">{graphError}</p>
           ) : null}
 
           {!graphLoading && !graphError && entityFacts.length === 0 ? (
-            <p className="text-sm text-stone-500">{uiText.noEntities}</p>
+            <p className="text-b4 text-dark-gray">{uiText.noEntities}</p>
           ) : null}
 
           {entityFacts.length > 0 ? (
             <div>
-              <p className="text-xs uppercase tracking-wide text-stone-500">{uiText.entityChips}</p>
+              <p className="text-xs uppercase tracking-wide text-dark-gray">{uiText.entityChips}</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {entityFacts.map((entity) => (
                   <button
@@ -98,7 +98,7 @@ export function SourceSidebar({
                     type="button"
                     disabled={!canSubmit}
                     onClick={() => onEntityChipClick(entity.name)}
-                    className="rounded-full border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded-full border border-accent/40 bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {entity.name}
                   </button>
@@ -108,9 +108,9 @@ export function SourceSidebar({
           ) : null}
 
           {relationSnippets.length > 0 ? (
-            <div className="mt-3 rounded-xl border border-stone-200 bg-stone-50 p-3">
-              <p className="text-xs uppercase tracking-wide text-stone-500">{uiText.relationSnippets}</p>
-              <ul className="mt-2 space-y-1.5 text-sm text-stone-700">
+            <div className="mt-3 rounded-xl border border-border bg-surface-alt p-3">
+              <p className="text-xs uppercase tracking-wide text-dark-gray">{uiText.relationSnippets}</p>
+              <ul className="mt-2 space-y-1.5 text-b4 text-light-gray">
                 {relationSnippets.map((snippet) => (
                   <li key={snippet}>{snippet}</li>
                 ))}

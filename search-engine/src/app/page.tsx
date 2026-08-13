@@ -219,12 +219,12 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#bdc7f5,#edeeff_35%,#f8fafc)] px-3 py-6 text-stone-900 sm:px-6">
+    <main className="min-h-screen bg-background px-3 py-6 text-main sm:px-6">
       <div className="mx-auto grid w-full max-w-6xl items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="flex h-[calc(100vh-3rem)] min-h-135 flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white/90 p-4 shadow-sm sm:p-6">
-          <header className="mb-4 shrink-0 border-b border-stone-200 pb-3">
-            <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{uiText.title}</h1>
-            <p className="mt-1 text-sm text-stone-600">{uiText.subtitle}</p>
+        <section className="flex h-[calc(100vh-3rem)] min-h-135 flex-col overflow-hidden rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+          <header className="mb-4 shrink-0 border-b border-border pb-3">
+            <h1 className="text-h3 font-semibold tracking-tight text-main">{uiText.title}</h1>
+            <p className="mt-1 text-b4 text-medium-gray">{uiText.subtitle}</p>
           </header>
 
           <div
