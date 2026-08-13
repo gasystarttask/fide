@@ -33,4 +33,39 @@ describe("ChatMessageList integration", () => {
     fireEvent.click(screen.getByRole("button", { name: "John 3:16" }));
     expect(onCitationClick).toHaveBeenCalledWith("John 3:16");
   });
+
+  it("toggles thumbs up/down feedback per message without affecting other messages", () => {
+    render(
+      <ChatMessageList
+        cooldownSeconds={0}
+        uiText={COPY.en}
+        messages={[
+          { id: "a1", role: "assistant", content: "First answer." },
+          { id: "a2", role: "assistant", content: "Second answer." },
+        ]}
+        isRetrieving={false}
+        isStreaming={false}
+        onCitationClick={vi.fn()}
+        renderMessageWithCitations={renderMessageWithCitations}
+        getMessageText={getMessageText}
+      />
+    );
+
+    const helpfulButtons = screen.getAllByRole("button", { name: COPY.en.feedbackHelpful });
+    const notHelpfulButtons = screen.getAllByRole("button", { name: COPY.en.feedbackNotHelpful });
+
+    expect(helpfulButtons[0]).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(helpfulButtons[0]);
+    expect(helpfulButtons[0]).toHaveAttribute("aria-pressed", "true");
+    expect(notHelpfulButtons[0]).toHaveAttribute("aria-pressed", "false");
+    expect(helpfulButtons[1]).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(notHelpfulButtons[0]);
+    expect(helpfulButtons[0]).toHaveAttribute("aria-pressed", "false");
+    expect(notHelpfulButtons[0]).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(notHelpfulButtons[0]);
+    expect(notHelpfulButtons[0]).toHaveAttribute("aria-pressed", "false");
+  });
 });

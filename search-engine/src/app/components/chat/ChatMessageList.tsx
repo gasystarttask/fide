@@ -1,5 +1,8 @@
+import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { ChatMessage, RenderMessageWithCitations, UIText } from "../../types/ui";
+import { Button } from "../ui/Button";
+import { BotIcon, ThumbsDownIcon, ThumbsUpIcon, UserIcon } from "../ui/icons";
 
 type ChatMessageListProps = {
   cooldownSeconds: number;
@@ -13,6 +16,8 @@ type ChatMessageListProps = {
   getMessageText: (message: { parts?: { type?: string; text?: string }[]; content?: string }) => string;
 };
 
+type FeedbackValue = "up" | "down";
+
 export function ChatMessageList({
   cooldownSeconds,
   uiText,
@@ -24,6 +29,20 @@ export function ChatMessageList({
   renderMessageWithCitations,
   getMessageText,
 }: ChatMessageListProps) {
+  const [feedbackByMessageId, setFeedbackByMessageId] = useState<Record<string, FeedbackValue>>({});
+
+  function toggleFeedback(messageId: string, value: FeedbackValue) {
+    setFeedbackByMessageId((current) => {
+      const next = { ...current };
+      if (next[messageId] === value) {
+        delete next[messageId];
+      } else {
+        next[messageId] = value;
+      }
+      return next;
+    });
+  }
+
   return (
     <div className="space-y-3">
       {cooldownSeconds > 0 ? (
@@ -44,6 +63,7 @@ export function ChatMessageList({
             ? "border-primary/25 bg-surface-alt"
             : "border-border bg-surface";
           const text = getMessageText(message);
+          const feedback = feedbackByMessageId[message.id];
 
           return (
             <motion.article
@@ -52,14 +72,56 @@ export function ChatMessageList({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className={`rounded-xl border p-3 ${bubbleClass}`}
+              className="flex items-start gap-2"
             >
-              <p className="mb-1 text-b4 font-medium uppercase tracking-wide text-medium-gray">
-                {isAssistant ? uiText.roleAssistant : uiText.roleUser}
-              </p>
-              <p className="whitespace-pre-wrap wrap-break-word text-b3 leading-7 text-main">
-                {isAssistant ? renderMessageWithCitations(text, onCitationClick) : text}
-              </p>
+              <span
+                aria-hidden="true"
+                className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full ${
+                  isAssistant ? "bg-primary/15 text-primary" : "bg-surface-alt text-medium-gray"
+                }`}
+              >
+                {isAssistant ? <BotIcon className="size-4" /> : <UserIcon className="size-4" />}
+              </span>
+
+              <div className={`min-w-0 flex-1 rounded-xl border p-3 ${bubbleClass}`}>
+                <p className="mb-1 text-b4 font-medium uppercase tracking-wide text-medium-gray">
+                  {isAssistant ? uiText.roleAssistant : uiText.roleUser}
+                </p>
+                <div className="wrap-break-word text-b3 leading-7 text-main">
+                  {isAssistant ? (
+                    renderMessageWithCitations(text, onCitationClick)
+                  ) : (
+                    <p className="whitespace-pre-wrap">{text}</p>
+                  )}
+                </div>
+
+                {isAssistant && text ? (
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      variant={feedback === "up" ? "ghost" : "secondary"}
+                      tone="primary"
+                      size="sm"
+                      aria-pressed={feedback === "up"}
+                      aria-label={uiText.feedbackHelpful}
+                      onClick={() => toggleFeedback(message.id, "up")}
+                    >
+                      <ThumbsUpIcon className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={feedback === "down" ? "ghost" : "secondary"}
+                      tone="primary"
+                      size="sm"
+                      aria-pressed={feedback === "down"}
+                      aria-label={uiText.feedbackNotHelpful}
+                      onClick={() => toggleFeedback(message.id, "down")}
+                    >
+                      <ThumbsDownIcon className="size-3.5" />
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
             </motion.article>
           );
         })}

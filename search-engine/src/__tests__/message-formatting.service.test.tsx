@@ -48,6 +48,25 @@ describe("message formatting service", () => {
     expect(onCitationClick).toHaveBeenCalledWith("John 3:16");
   });
 
+  it("renders real markdown lists, not just literal dashes", () => {
+    render(<div>{renderMessageWithCitations("- First point\n- Second point", vi.fn())}</div>);
+
+    const list = screen.getByRole("list");
+    expect(list.tagName).toBe("UL");
+    expect(screen.getByText("First point")).toBeInTheDocument();
+    expect(screen.getByText("Second point")).toBeInTheDocument();
+  });
+
+  it("does not follow unsafe URL schemes in ordinary markdown links", () => {
+    render(
+      <div>{renderMessageWithCitations("[click me](javascript:alert(1))", vi.fn())}</div>
+    );
+
+    const link = screen.getByText("click me");
+    expect(link.tagName).toBe("A");
+    expect(link).toHaveAttribute("href", "");
+  });
+
   it("splits comma-separated citations inside a single bracket group", () => {
     const onCitationClick = vi.fn();
     const text =

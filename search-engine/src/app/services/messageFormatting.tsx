@@ -1,9 +1,12 @@
-import { Fragment } from "react";
 import type { ReactNode } from "react";
+import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
+import type { Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { ChatPart, RenderMessageWithCitations } from "../types/ui";
 import { Button } from "../components/ui/Button";
 
-const TOKEN_REGEX = /(\[([^\]]+\d+:\d+(?:-\d+)?)\]|\(([^\)]+\d+:\d+(?:-\d+)?)\)|\*\*([^\*]+)\*\*)/g;
+const CITATION_TOKEN_REGEX = /(\[([^\]]+\d+:\d+(?:-\d+)?)\]|\(([^)]+\d+:\d+(?:-\d+)?)\))/g;
+const CITATION_URL_PREFIX = "citation:";
 
 function splitCitationReferences(citation: string): string[] {
   const refs = citation
@@ -26,72 +29,59 @@ export function getMessageText(message: { parts?: ChatPart[]; content?: string }
     .join("");
 }
 
-export const renderMessageWithCitations: RenderMessageWithCitations = (
-  text,
-  onCitationClick
-): ReactNode[] => {
-  const nodes: ReactNode[] = [];
-  let lastIndex = 0;
-  let index = 0;
+// Rewrite our own [Book Ch:V] / (Book Ch:V) citation shorthand into real
+// markdown links (one per reference) so a single markdown parser handles
+// both citations and normal formatting instead of two separate passes.
+function convertCitationsToMarkdownLinks(text: string): string {
+  return text.replace(CITATION_TOKEN_REGEX, (match, _fullMatch, bracketCitation, parenCitation) => {
+    const citation = (bracketCitation ?? parenCitation ?? "").trim();
+    if (!citation) return match;
 
-  for (const match of text.matchAll(TOKEN_REGEX)) {
-    const full = match[1];
-    const citation = (match[2] ?? match[3] ?? "").trim();
-    const boldText = match[4] ?? "";
+    return splitCitationReferences(citation)
+      .map((reference) => `[${reference}](${CITATION_URL_PREFIX}${encodeURIComponent(reference)})`)
+      .join(", ");
+  });
+}
 
-    if (!full || match.index == null) continue;
+// react-markdown's default sanitizer only allows http(s)/irc(s)/mailto/xmpp
+// links and silently drops anything else, so the citation: scheme needs an
+// explicit allowlist entry or every citation link is stripped to href="".
+function urlTransform(url: string): string {
+  return url.startsWith(CITATION_URL_PREFIX) ? url : defaultUrlTransform(url);
+}
 
-    const start = match.index;
-    if (start > lastIndex) {
-      nodes.push(<Fragment key={`text-${index}`}>{text.slice(lastIndex, start)}</Fragment>);
-      index += 1;
-    }
+function buildMarkdownComponents(onCitationClick: (reference: string) => void): Components {
+  return {
+    a: ({ href, children }) => {
+      if (href?.startsWith(CITATION_URL_PREFIX)) {
+        const reference = decodeURIComponent(href.slice(CITATION_URL_PREFIX.length));
 
-    if (boldText.length > 0) {
-      nodes.push(
-        <strong key={`bold-${index}`} className="font-semibold">
-          {boldText}
-        </strong>
+        return (
+          <Button type="button" variant="ghost" tone="primary" size="sm" onClick={() => onCitationClick(reference)}>
+            {children}
+          </Button>
+        );
+      }
+
+      return (
+        <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+          {children}
+        </a>
       );
+    },
+    p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+    ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>,
+    ol: ({ children }) => <ol className="mb-2 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>,
+  };
+}
 
-      index += 1;
-      lastIndex = start + full.length;
-      continue;
-    }
-
-    if (!citation) {
-      lastIndex = start + full.length;
-      continue;
-    }
-
-    const references = splitCitationReferences(citation);
-
-    nodes.push(
-      <Fragment key={`cite-group-${citation}-${index}`}>
-        {references.map((reference, refIndex) => (
-          <Fragment key={`cite-item-${reference}-${refIndex}`}>
-            {refIndex > 0 ? ", " : null}
-            <Button
-              type="button"
-              variant="ghost"
-              tone="primary"
-              size="sm"
-              onClick={() => onCitationClick(reference)}
-            >
-              {reference}
-            </Button>
-          </Fragment>
-        ))}
-      </Fragment>
-    );
-
-    index += 1;
-    lastIndex = start + full.length;
-  }
-
-  if (lastIndex < text.length) {
-    nodes.push(<Fragment key={`text-tail-${index}`}>{text.slice(lastIndex)}</Fragment>);
-  }
-
-  return nodes.length ? nodes : [text];
-};
+export const renderMessageWithCitations: RenderMessageWithCitations = (text, onCitationClick): ReactNode[] => [
+  <ReactMarkdown
+    key="markdown"
+    remarkPlugins={[remarkGfm]}
+    urlTransform={urlTransform}
+    components={buildMarkdownComponents(onCitationClick)}
+  >
+    {convertCitationsToMarkdownLinks(text)}
+  </ReactMarkdown>,
+];
