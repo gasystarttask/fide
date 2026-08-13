@@ -52,6 +52,8 @@ export type UIText = {
   rateLimitRetry: (seconds: number) => string;
   retrievingContext: string;
   assistantStreaming: string;
+  feedbackHelpful: string;
+  feedbackNotHelpful: string;
   inputPlaceholder: string;
   retryCta: (seconds: number) => string;
   inProgressCta: string;
