@@ -113,6 +113,41 @@ jobs:
           kubectl wait --for=condition=complete job/meilisearch-init --timeout=120s
           kubectl logs job/meilisearch-init
 
+      # --- Keycloak ---
+      # Self-hosted SSO identity provider for search-engine (issue #127).
+      # Own dedicated Postgres pod + PVC — NOT the embedded dev-mode DB —
+      # since aks-stop-start.yml recreates pods on every nightly stop/start,
+      # which would otherwise wipe realms/users/clients.
+
+      - name: Create/update keycloak-db-secret
+        run: |
+          kubectl create secret generic keycloak-db-secret \
+            --from-literal=POSTGRES_PASSWORD="${{ secrets.KEYCLOAK_DB_PASSWORD }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy Keycloak's Postgres
+        run: |
+          kubectl apply -f keycloak/keycloak-db-storage.yml
+          kubectl apply -f keycloak/keycloak-db-deployment.yaml
+          kubectl rollout restart deployment/keycloak-db
+          kubectl rollout status deployment/keycloak-db --timeout=180s
+
+      - name: Create/update keycloak-secret
+        run: |
+          kubectl create secret generic keycloak-secret \
+            --from-literal=KC_BOOTSTRAP_ADMIN_PASSWORD="${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      # KC_BOOTSTRAP_ADMIN_* only takes effect once, against an empty admin
+      # table — unlike meilisearch-secret above, re-running this step after
+      # bootstrap does NOT rotate the live admin password (see README).
+      - name: Deploy Keycloak
+        run: |
+          kubectl apply -f keycloak/keycloak-deployment.yaml
+          kubectl apply -f keycloak/keycloak-ingress.yaml
+          kubectl rollout restart deployment/keycloak
+          kubectl rollout status deployment/keycloak --timeout=300s
+
       # --- search-engine ---
       # Only applies config/networking here; the image itself is managed by
       # search-engine-docker.yml's own `deploy` job on app-code pushes.

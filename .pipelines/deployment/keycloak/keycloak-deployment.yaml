@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+spec:
+  replicas: 1 # single-node cluster — no HA to gain from more replicas here
+  strategy:
+    # Keycloak itself is stateless, but Recreate avoids two instances racing
+    # the same Postgres schema migration on a rollout.
+    type: Recreate
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      containers:
+      - name: keycloak
+        image: quay.io/keycloak/keycloak:26.7
+        # Plain `start` (not `--optimized`) rebuilds providers on every boot —
+        # slower, but --optimized requires a pre-baked custom image, which
+        # this repo deliberately avoids (no docker-build workflow for
+        # Keycloak/Postgres, same as Meilisearch: reference the official
+        # image directly).
+        args: ["start"]
+        env:
+        - name: KC_DB
+          value: "postgres"
+        - name: KC_DB_URL
+          value: "jdbc:postgresql://keycloak-db-service:5432/keycloak"
+        - name: KC_DB_USERNAME
+          value: "keycloak"
+        - name: KC_DB_PASSWORD
+          # Same Secret Postgres itself uses — avoids keeping this password
+          # in two places.
+          valueFrom:
+            secretKeyRef:
+              name: keycloak-db-secret
+              key: POSTGRES_PASSWORD
+        # TLS terminates at ingress-nginx; Keycloak itself only ever speaks
+        # plain HTTP internally.
+        - name: KC_HTTP_ENABLED
+          value: "true"
+        - name: KC_PROXY_HEADERS
+          value: "xforwarded"
+        # Fixed, not auto-detected: a request reaching Keycloak over an
+        # internal Service URL must still get back a discovery document
+        # advertising this public URL, or OIDC clients validating the
+        # issuer will reject it.
+        - name: KC_HOSTNAME
+          value: "https://auth.rrahajason.space"
+        - name: KC_HOSTNAME_STRICT
+          value: "false"
+        - name: KC_HEALTH_ENABLED
+          value: "true"
+        # Bootstrap admin — only takes effect once, against an empty DB.
+        # Disable this account after creating a permanent admin (see
+        # ../README.md's "Deploying Keycloak" section).
+        - name: KC_BOOTSTRAP_ADMIN_USERNAME
+          value: "kcadmin"
+        - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: keycloak-secret
+              key: KC_BOOTSTRAP_ADMIN_PASSWORD
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 9000
+          name: http-mgmt
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 9000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 6 # non-optimized `start` is slow to come up
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 9000
+          initialDelaySeconds: 60
+          periodSeconds: 20
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+  selector:
+    app: keycloak

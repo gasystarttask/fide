@@ -157,3 +157,18 @@ it by setting `aks_api_server_authorized_ip_ranges` in `terraform.tfvars`
   and SLA — node VMs (`aks_node_vm_size`, default `Standard_B2s`) bill as
   normal compute. Scale `aks_node_count` down to 0 or destroy the cluster
   when not in use to avoid running costs.
+- **Node sizing for Keycloak.** The current default (`Standard_B2s`, 2 vCPU /
+  4GiB — or whatever equivalent your region substituted it with; `aks_node_vm_size`
+  lives in your own untracked `terraform.tfvars`, not in git) leaves very
+  little headroom once Keycloak + its Postgres pod join Meilisearch and
+  search-engine on the single node — see
+  `../.pipelines/deployment/README.md`'s "Deploying Keycloak" section for
+  the memory math. Before deploying Keycloak, bump `aks_node_vm_size` in
+  your `terraform.tfvars` to something in the ~8GiB range in the same family
+  (e.g. `Standard_B2ms`), checking availability first with
+  `az vm list-skus --location <your-region> --size <candidate> --output table`
+  — this repo's actual node SKU has already diverged once from the
+  `terraform.tfvars.example` default due to regional availability. Applying
+  the change replaces the node, so expect a brief reschedule of every pod on
+  the cluster; run `kubectl top nodes` afterward to confirm real headroom
+  before declaring this margin sufficient.
