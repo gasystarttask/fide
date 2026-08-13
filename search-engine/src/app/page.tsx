@@ -60,7 +60,7 @@ export default function Home() {
     []
   );
 
-  const { messages, sendMessage, status, error, clearError } = useChat({ transport });
+  const { messages, sendMessage, status, error, clearError, stop } = useChat({ transport });
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const isNearBottomRef = useRef(true);
@@ -267,6 +267,7 @@ export default function Home() {
             draft={draft}
             setDraft={setDraft}
             onSubmit={onSubmit}
+            onStop={stop}
             canSubmit={canSubmit}
             cooldownSeconds={cooldownSeconds}
             isStreaming={isStreaming}
