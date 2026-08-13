@@ -54,3 +54,23 @@ export function ThumbsDownIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function CloseIcon(props: IconProps) {
+  return (
+    <svg {...baseProps(props)}>
+      <path d="M6 6l12 12" />
+      <path d="M18 6L6 18" />
+    </svg>
+  );
+}
+
+export function SourcesIcon(props: IconProps) {
+  return (
+    <svg {...baseProps(props)}>
+      <path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H18a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H7.5A2.5 2.5 0 0 1 5 17.5v-12Z" />
+      <path d="M8 8h8" />
+      <path d="M8 12h6" />
+      <path d="M5 17.5A2.5 2.5 0 0 1 7.5 15H19" />
+    </svg>
+  );
+}

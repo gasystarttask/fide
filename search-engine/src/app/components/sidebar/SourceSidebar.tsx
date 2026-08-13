@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import type { EntityFact, UIText, VersePreview } from "../../types/ui";
 import { Button } from "../ui/Button";
+import { CloseIcon } from "../ui/icons";
 
 type SourceSidebarProps = {
   uiText: UIText;
@@ -14,6 +15,7 @@ type SourceSidebarProps = {
   relationSnippets: string[];
   canSubmit: boolean;
   onEntityChipClick: (entityName: string) => void;
+  onClose: () => void;
 };
 
 export function SourceSidebar({
@@ -28,10 +30,24 @@ export function SourceSidebar({
   relationSnippets,
   canSubmit,
   onEntityChipClick,
+  onClose,
 }: SourceSidebarProps) {
   return (
-    <aside className="rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-5 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
-      <h2 className="text-b4 font-semibold uppercase tracking-wide text-medium-gray">{uiText.sourcePreviewTitle}</h2>
+    <aside className="h-full overflow-y-auto rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-5 lg:h-auto lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)]">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-b4 font-semibold uppercase tracking-wide text-medium-gray">{uiText.sourcePreviewTitle}</h2>
+        <Button
+          type="button"
+          variant="ghost"
+          tone="primary"
+          size="sm"
+          className="lg:hidden"
+          aria-label={uiText.closeSidebar}
+          onClick={onClose}
+        >
+          <CloseIcon className="size-4" />
+        </Button>
+      </div>
       {!selectedCitation ? (
         <p className="mt-3 text-b4 text-dark-gray">{uiText.sourcePreviewHint}</p>
       ) : null}

@@ -7,6 +7,8 @@ import { DefaultChatTransport } from "ai";
 import { ChatMessageList } from "./components/chat/ChatMessageList";
 import { ChatComposer } from "./components/chat/ChatComposer";
 import { SourceSidebar } from "./components/sidebar/SourceSidebar";
+import { Button } from "./components/ui/Button";
+import { SourcesIcon } from "./components/ui/icons";
 import type { EntityFact, HybridSearchResponse, Locale, VersePreview } from "./types/ui";
 import { COPY, LOCALE_STORAGE_KEY, resolveLocale } from "./services/localization";
 import { parseRetryAfterSeconds, extractRetryAfterFromMessage } from "./services/rateLimitParser";
@@ -27,6 +29,7 @@ export default function Home() {
   const [entityFacts, setEntityFacts] = useState<EntityFact[]>([]);
   const [graphLoading, setGraphLoading] = useState(false);
   const [graphError, setGraphError] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const uiText = COPY[locale];
 
@@ -177,6 +180,7 @@ export default function Home() {
     setSelectedCitation(reference);
     setPreviewLoading(true);
     setPreviewError(null);
+    setIsSidebarOpen(true);
 
     try {
       const res = await fetch(`/api/verse-preview?reference=${encodeURIComponent(reference)}`);
@@ -222,9 +226,21 @@ export default function Home() {
     <main className="min-h-screen bg-background px-3 py-6 text-main sm:px-6">
       <div className="mx-auto grid w-full max-w-6xl items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="flex h-[calc(100vh-3rem)] min-h-135 flex-col overflow-hidden rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
-          <header className="mb-4 shrink-0 border-b border-border pb-3">
-            <h1 className="text-h3 font-semibold tracking-tight text-main">{uiText.title}</h1>
-            <p className="mt-1 text-b4 text-medium-gray">{uiText.subtitle}</p>
+          <header className="mb-4 flex shrink-0 items-start justify-between gap-2 border-b border-border pb-3">
+            <div>
+              <h1 className="text-h3 font-semibold tracking-tight text-main">{uiText.title}</h1>
+              <p className="mt-1 text-b4 text-medium-gray">{uiText.subtitle}</p>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="shrink-0 lg:hidden"
+              onClick={() => setIsSidebarOpen(true)}
+            >
+              <SourcesIcon className="size-4" />
+              {uiText.sourcesToggle}
+            </Button>
           </header>
 
           <div
@@ -257,19 +273,34 @@ export default function Home() {
           />
         </section>
 
-        <SourceSidebar
-          uiText={uiText}
-          selectedCitation={selectedCitation}
-          previewLoading={previewLoading}
-          previewError={previewError}
-          preview={preview}
-          graphLoading={graphLoading}
-          graphError={graphError}
-          entityFacts={entityFacts}
-          relationSnippets={relationSnippets}
-          canSubmit={canSubmit}
-          onEntityChipClick={onEntityChipClick}
-        />
+        {isSidebarOpen ? (
+          <div
+            className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+            aria-hidden="true"
+          />
+        ) : null}
+
+        <div
+          className={`fixed inset-y-0 right-0 z-40 w-[85vw] max-w-sm p-3 transition-transform duration-200 lg:static lg:z-auto lg:w-auto lg:max-w-none lg:translate-x-0 lg:p-0 ${
+            isSidebarOpen ? "translate-x-0" : "translate-x-full"
+          }`}
+        >
+          <SourceSidebar
+            uiText={uiText}
+            selectedCitation={selectedCitation}
+            previewLoading={previewLoading}
+            previewError={previewError}
+            preview={preview}
+            graphLoading={graphLoading}
+            graphError={graphError}
+            entityFacts={entityFacts}
+            relationSnippets={relationSnippets}
+            canSubmit={canSubmit}
+            onEntityChipClick={onEntityChipClick}
+            onClose={() => setIsSidebarOpen(false)}
+          />
+        </div>
       </div>
     </main>
   );
