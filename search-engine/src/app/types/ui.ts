@@ -54,6 +54,9 @@ export type UIText = {
   assistantStreaming: string;
   feedbackHelpful: string;
   feedbackNotHelpful: string;
+  emptyStateTitle: string;
+  emptyStateSubtitle: string;
+  suggestionPrompts: string[];
   inputPlaceholder: string;
   retryCta: (seconds: number) => string;
   inProgressCta: string;
