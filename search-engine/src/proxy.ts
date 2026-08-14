@@ -12,6 +12,19 @@ function getClientIp(req: NextRequest): string {
 // next-auth's own OAuth flow endpoints must stay reachable without a session.
 const PUBLIC_API_PREFIX = "/api/auth";
 
+function rateLimitedResponse(rate: { remaining: number; resetAt: number }) {
+  return NextResponse.json(
+    { error: "Too many requests. Please try again later." },
+    {
+      status: 429,
+      headers: {
+        "X-RateLimit-Remaining": String(rate.remaining),
+        "X-RateLimit-Reset": String(Math.ceil(rate.resetAt / 1000)),
+      },
+    }
+  );
+}
+
 export const proxy = auth((req) => {
   const { pathname } = req.nextUrl;
 
@@ -19,24 +32,33 @@ export const proxy = auth((req) => {
     return NextResponse.next();
   }
 
+  // Per-IP first — catches unauthenticated flooding (including against the
+  // login flow itself) before we even know who, if anyone, is signed in.
   const ip = getClientIp(req);
-  const rate = checkRateLimit(ip, 30, 60_000);
+  let rate = checkRateLimit(`ip:${ip}`, 30, 60_000);
 
   if (!rate.allowed) {
-    return NextResponse.json(
-      { error: "Too many requests. Please try again later." },
-      {
-        status: 429,
-        headers: {
-          "X-RateLimit-Remaining": String(rate.remaining),
-          "X-RateLimit-Reset": String(Math.ceil(rate.resetAt / 1000)),
-        },
-      }
-    );
+    return rateLimitedResponse(rate);
   }
 
   if (!pathname.startsWith(PUBLIC_API_PREFIX) && !req.auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Per-user, independent of IP — a valid session rotating across IPs (or
+  // sharing one with other users behind NAT/VPN) is still capped on its own.
+  const userId = req.auth?.user?.email;
+
+  if (userId) {
+    const userRate = checkRateLimit(`user:${userId}`, 30, 60_000);
+
+    if (!userRate.allowed) {
+      return rateLimitedResponse(userRate);
+    }
+
+    if (userRate.remaining < rate.remaining) {
+      rate = userRate;
+    }
   }
 
   const requestHeaders = new Headers(req.headers);
