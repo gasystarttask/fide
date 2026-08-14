@@ -19,6 +19,11 @@ jobs:
       contents: write
     env:
       TAG: kc-theme-v${{ inputs.version }}
+      # Fixed, floating tag the Keycloak deployment pulls from — NOT GitHub's
+      # generic "latest" release, which is repo-wide and would get hijacked
+      # by this repo's unrelated app release.yml (tag v<version>) the next
+      # time someone cuts an app release after a theme release.
+      LATEST_TAG: kc-theme-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -57,14 +62,20 @@ jobs:
         # `keycloakify build` names its output after the Keycloak version
         # range it targets (e.g. keycloak-theme-for-kc-all-other-versions.jar
         # covers the KC 26.x this repo runs). Renaming it here gives the
-        # release a fixed asset filename so the Keycloak deployment can pull
-        # ".../releases/latest/download/keycloak-theme.jar" without needing
-        # to know the current version tag — see
-        # .pipelines/deployment/keycloak/keycloak-deployment.yaml.
-        run: cp kc-themes/dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar keycloak-theme.jar
+        # release a fixed asset filename. Fails loudly with a clear message
+        # if a keycloakify bump ever changes that naming, rather than a
+        # cryptic "No such file" from `cp`.
+        run: |
+          SRC=kc-themes/dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar
+          if [ ! -f "$SRC" ]; then
+            echo "Expected jar not found at $SRC — keycloakify's output naming" >&2
+            echo "may have changed. Files actually produced:" >&2
+            ls -la kc-themes/dist_keycloak/ >&2
+            exit 1
+          fi
+          cp "$SRC" keycloak-theme.jar
 
       - name: Generate changelog
-        id: changelog
         run: |
           PREV=$(git tag -l 'kc-theme-v*' --sort=-v:refname | head -1)
           if [ -z "$PREV" ]; then
@@ -75,15 +86,11 @@ jobs:
             HEADER="Changes since $PREV"
           fi
 
-          BODY=$(git log "$RANGE" --pretty=format:"- %s (%h)" --no-merges -- kc-themes)
-
           {
-            echo "body<<EOF"
             echo "## $HEADER"
             echo ""
-            echo "$BODY"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+            git log "$RANGE" --pretty=format:"- %s (%h)" --no-merges -- kc-themes
+          } > changelog.md
 
       - name: Create and push tag
         run: |
@@ -97,7 +104,22 @@ jobs:
         with:
           tag_name: ${{ env.TAG }}
           name: ${{ env.TAG }}
-          body: ${{ steps.changelog.outputs.body }}
+          body_path: changelog.md
+          files: keycloak-theme.jar
+          draft: false
+          prerelease: false
+
+      - name: Move the floating kc-theme-latest tag
+        run: |
+          git tag -f "$LATEST_TAG"
+          git push origin "$LATEST_TAG" --force
+
+      - name: Update the kc-theme-latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.LATEST_TAG }}
+          name: ${{ env.LATEST_TAG }}
+          body: "Floating release — always points at the same jar as the most recent ${{ env.TAG }}. Pulled by .pipelines/deployment/keycloak/keycloak-deployment.yaml's pull-theme initContainer. Do not download this for anything version-pinned; use a specific kc-theme-v* release instead."
           files: keycloak-theme.jar
           draft: false
           prerelease: false

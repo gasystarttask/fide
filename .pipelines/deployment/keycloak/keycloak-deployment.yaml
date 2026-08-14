@@ -31,11 +31,25 @@ spec:
         command:
         - sh
         - -c
-        # Tolerate no release existing yet (e.g. before kc-theme-release.yml
-        # has ever run) — the main container must still start with
-        # Keycloak's default look rather than being blocked by a failed
-        # initContainer.
-        - curl -fsSL https://github.com/gasystarttask/fide/releases/latest/download/keycloak-theme.jar -o /providers/theme.jar || echo "No kc-theme release found yet — starting with the default Keycloak theme."
+        # Pulls the fixed "kc-theme-latest" tag, NOT GitHub's generic
+        # /releases/latest/ — that's repo-wide and would get hijacked by
+        # this repo's unrelated app release.yml (tag v<version>) the next
+        # time an app release is cut after a theme release, silently 404ing
+        # this fetch forever after. --remove-on-error avoids leaving a
+        # truncated jar behind on a failed transfer; --connect-timeout/
+        # --max-time bound how long a stalled connection can block this
+        # initContainer (and therefore the whole pod) from starting.
+        # Tolerates no release existing yet (e.g. before kc-theme-release.yml
+        # has ever run), or any other fetch failure — the main container must
+        # still start with Keycloak's default look rather than being blocked
+        # by a failed initContainer.
+        - |
+          URL=https://github.com/gasystarttask/fide/releases/download/kc-theme-latest/keycloak-theme.jar
+          if curl -fsSL --remove-on-error --connect-timeout 10 --max-time 60 "$URL" -o /providers/theme.jar; then
+            echo "Fetched custom Keycloak theme from $URL"
+          else
+            echo "Could not fetch custom Keycloak theme from $URL (no release published yet, or a fetch error) — starting with the default Keycloak theme."
+          fi
         volumeMounts:
         - name: keycloak-providers
           mountPath: /providers

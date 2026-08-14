@@ -214,15 +214,19 @@ browsers must reach it directly during login.
 
 ### Custom login theme
 
-`keycloak-deployment.yaml`'s `pull-theme` initContainer downloads the latest
-`kc-theme-v*` release's `keycloak-theme.jar` (built from `../../kc-themes/`)
-into a volume mounted at `/opt/keycloak/providers` on the main container.
-Since Keycloak runs `start` (non-optimized, see above), it rebuilds
-providers from that directory on every boot — including on the nightly
-stop/start pod recreation — so the theme jar refreshes to whatever the
-latest release is on every restart automatically. If no release exists yet,
-the initContainer logs a message and exits `0` rather than failing, so a
-missing theme never blocks Keycloak itself from starting.
+`keycloak-deployment.yaml`'s `pull-theme` initContainer downloads
+`keycloak-theme.jar` (built from `../../kc-themes/`) from the floating
+`kc-theme-latest` release tag — **not** GitHub's generic `/releases/latest/`,
+which is repo-wide and would get hijacked by this repo's own app
+`release.yml` — into a volume mounted at `/opt/keycloak/providers` on the
+main container. Since Keycloak runs `start` (non-optimized, see above), it
+rebuilds providers from that directory on every boot — including on the
+nightly stop/start pod recreation — so the theme jar refreshes to whatever
+`kc-theme-release.yml` last published, on every restart, automatically. If
+no release exists yet, or the fetch fails for any reason, the initContainer
+logs a message and exits `0` rather than failing, so a theme problem never
+blocks Keycloak itself from starting. See `../../kc-themes/README.md` for
+the accepted risk this trades off (no version pinning/rollback).
 
 ### Cost delta
 

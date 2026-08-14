@@ -54,17 +54,30 @@ jar) — `JAVA_HOME` must point at a valid JDK. Output lands in
 `.github/workflows/kc-theme-release.yml` (`workflow_dispatch`, required
 `version` input) builds the jar and publishes it as a GitHub Release tagged
 `kc-theme-v<version>`, with the jar attached under the fixed asset name
-`keycloak-theme.jar` — so it's always fetchable at
-`https://github.com/gasystarttask/fide/releases/latest/download/keycloak-theme.jar`
-regardless of which version is actually latest.
+`keycloak-theme.jar`. It then also moves a floating `kc-theme-latest` tag to
+point at the same commit and updates a release under that tag with the same
+jar — that fixed tag, **not** GitHub's generic `/releases/latest/`, is what
+gets pulled at deploy time, since this repo's own `release.yml` (app
+releases, tag `v<version>`) publishes into the same repo and would
+otherwise hijack "latest" the next time an app release is cut after a theme
+release.
 
 ## Installing into the running Keycloak instance
 
 `.pipelines/deployment/keycloak/keycloak-deployment.yaml`'s `pull-theme`
-initContainer downloads that same "latest" URL into
-`/opt/keycloak/providers` on every pod start — no manual install step, no
-custom Keycloak image. Since Keycloak runs in non-optimized `start` mode, it
-rebuilds providers from that directory automatically on boot. What's still
-manual: setting a realm's *login theme* to `fide-kc-themes` in the Admin
-Console (Realm Settings → Themes) once a release exists — see
+initContainer downloads
+`https://github.com/gasystarttask/fide/releases/download/kc-theme-latest/keycloak-theme.jar`
+into `/opt/keycloak/providers` on every pod start — no manual install step,
+no custom Keycloak image. Since Keycloak runs in non-optimized `start`
+mode, it rebuilds providers from that directory automatically on boot. What's
+still manual: setting a realm's *login theme* to `fide-kc-themes` in the
+Admin Console (Realm Settings → Themes) once a release exists — see
 `.pipelines/deployment/README.md`'s "Deploying Keycloak" section.
+
+**Accepted risk, not yet addressed**: the deployment always tracks
+`kc-theme-latest` with no version pinning and no rollback path — a broken
+theme release breaks every login page at the next pod restart (including
+the automated nightly one) with no fallback to a known-good jar. If that
+becomes a real problem, pin `keycloak-deployment.yaml` to a specific
+`kc-theme-v<version>` release URL instead and bump it deliberately, the same
+way `search-engine-docker.yml` pins a sha-tagged image rather than `latest`.
