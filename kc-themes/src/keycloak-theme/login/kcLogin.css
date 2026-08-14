@@ -1,0 +1,123 @@
+/*
+ * Design tokens ported 1:1 from search-engine/src/app/globals.css (issue
+ * #148's design system: near-black dark theme, purple/lavender accent) so
+ * the Keycloak login page reads as part of the same product, not a
+ * separate, default-Keycloak-styled screen.
+ */
+:root {
+  --background: #0b0b10;
+  --surface: #15151d;
+  --surface-alt: #1c1c26;
+  --border: #2a2a35;
+  --border-strong: #3a3a48;
+
+  --primary: #a7a0f8;
+  --primary-hover: #beb8fa;
+  --primary-foreground: #14121f;
+  --accent: #7468fc;
+
+  --text-main: #fafafa;
+  --text-medium-gray: #8692a6;
+  --text-dark-gray: #696f79;
+
+  --success: #34d399;
+  --danger: #f87171;
+}
+
+html.login-pf body,
+.login-pf-page {
+  background: var(--background) !important;
+  color: var(--text-main);
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+#kc-header-wrapper {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+#kc-page-title {
+  color: var(--text-main);
+}
+
+.card-pf {
+  background: var(--surface) !important;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--text-main);
+  box-shadow: none;
+}
+
+label,
+.pf-c-form__label-text {
+  color: var(--text-medium-gray);
+}
+
+.pf-c-form-control,
+input.form-control,
+textarea.form-control {
+  background: var(--surface-alt);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  color: var(--text-main);
+}
+
+.pf-c-form-control:focus,
+input.form-control:focus,
+textarea.form-control:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(116, 104, 252, 0.35);
+}
+
+/* Pill-shaped primary button, matching search-engine's shared Button
+ * component (src/app/components/ui/Button.tsx: variant="primary"). */
+.pf-c-button.pf-m-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: none;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.pf-c-button.pf-m-primary:hover {
+  background: var(--primary-hover);
+}
+
+.pf-c-button.pf-m-primary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.pf-c-button.pf-m-primary:disabled {
+  background: var(--border-strong);
+  color: var(--text-dark-gray);
+  cursor: not-allowed;
+}
+
+.pf-c-button.pf-m-secondary {
+  background: transparent;
+  color: var(--text-main);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+}
+
+.pf-c-button.pf-m-secondary:hover {
+  background: var(--surface-alt);
+}
+
+a {
+  color: var(--accent);
+}
+
+.pf-c-alert.pf-m-danger {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.pf-c-alert.pf-m-success {
+  background: rgba(52, 211, 153, 0.12);
+  border-color: var(--success);
+  color: var(--success);
+}

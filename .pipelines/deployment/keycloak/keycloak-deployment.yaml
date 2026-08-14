@@ -16,6 +16,29 @@ spec:
       labels:
         app: keycloak
     spec:
+      # Pulls the latest released kc-themes login theme jar (see
+      # .github/workflows/kc-theme-release.yml and kc-themes/README.md) into
+      # a volume shared with the main container, rather than baking a custom
+      # Keycloak image — consistent with this repo's "reference the official
+      # image directly" approach for Meilisearch/Keycloak. Since the main
+      # container runs `start` (non-optimized), Keycloak rebuilds providers
+      # from /opt/keycloak/providers on every boot and picks up whatever jar
+      # this initContainer just downloaded — including on the nightly
+      # stop/start pod recreation, so the theme stays current automatically.
+      initContainers:
+      - name: pull-theme
+        image: curlimages/curl:8.12.1
+        command:
+        - sh
+        - -c
+        # Tolerate no release existing yet (e.g. before kc-theme-release.yml
+        # has ever run) — the main container must still start with
+        # Keycloak's default look rather than being blocked by a failed
+        # initContainer.
+        - curl -fsSL https://github.com/gasystarttask/fide/releases/latest/download/keycloak-theme.jar -o /providers/theme.jar || echo "No kc-theme release found yet — starting with the default Keycloak theme."
+        volumeMounts:
+        - name: keycloak-providers
+          mountPath: /providers
       containers:
       - name: keycloak
         image: quay.io/keycloak/keycloak:26.7
@@ -70,6 +93,9 @@ spec:
           name: http
         - containerPort: 9000
           name: http-mgmt
+        volumeMounts:
+        - name: keycloak-providers
+          mountPath: /opt/keycloak/providers
         readinessProbe:
           httpGet:
             path: /health/ready
@@ -90,6 +116,9 @@ spec:
           limits:
             cpu: 500m
             memory: 1Gi
+      volumes:
+      - name: keycloak-providers
+        emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

@@ -206,6 +206,23 @@ browsers must reach it directly during login.
    against (realm e.g. `bible-sg`, confidential client, redirect URIs for
    `https://fide.rrahajason.space/*` and, for local development,
    `http://localhost:3000/*`).
+6. Once a `kc-theme-v*` release exists (see `../../kc-themes/README.md`), set
+   the realm's login theme to `fide-kc-themes` in the Admin Console (Realm
+   Settings → Themes → Login theme). This is a one-time, per-realm manual
+   step — the Deployment's `pull-theme` initContainer only fetches the jar
+   itself; nothing auto-assigns it.
+
+### Custom login theme
+
+`keycloak-deployment.yaml`'s `pull-theme` initContainer downloads the latest
+`kc-theme-v*` release's `keycloak-theme.jar` (built from `../../kc-themes/`)
+into a volume mounted at `/opt/keycloak/providers` on the main container.
+Since Keycloak runs `start` (non-optimized, see above), it rebuilds
+providers from that directory on every boot — including on the nightly
+stop/start pod recreation — so the theme jar refreshes to whatever the
+latest release is on every restart automatically. If no release exists yet,
+the initContainer logs a message and exits `0` rather than failing, so a
+missing theme never blocks Keycloak itself from starting.
 
 ### Cost delta
 

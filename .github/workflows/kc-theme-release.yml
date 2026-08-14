@@ -1,0 +1,103 @@
+name: Release Keycloak Theme
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 1.2.3)'
+        required: true
+        type: string
+
+concurrency:
+  group: kc-theme-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: kc-theme-v${{ inputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate version not already tagged
+        run: |
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists. Bump the version."
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: kc-themes/package-lock.json
+
+      - name: Set up Java (Maven, used by `keycloakify build` to package the jar)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install dependencies
+        working-directory: kc-themes
+        run: npm ci
+
+      - name: Build the theme jar
+        working-directory: kc-themes
+        run: npm run build-keycloak-theme
+
+      - name: Rename the jar to a stable asset name
+        # `keycloakify build` names its output after the Keycloak version
+        # range it targets (e.g. keycloak-theme-for-kc-all-other-versions.jar
+        # covers the KC 26.x this repo runs). Renaming it here gives the
+        # release a fixed asset filename so the Keycloak deployment can pull
+        # ".../releases/latest/download/keycloak-theme.jar" without needing
+        # to know the current version tag — see
+        # .pipelines/deployment/keycloak/keycloak-deployment.yaml.
+        run: cp kc-themes/dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar keycloak-theme.jar
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV=$(git tag -l 'kc-theme-v*' --sort=-v:refname | head -1)
+          if [ -z "$PREV" ]; then
+            RANGE="HEAD"
+            HEADER="Initial release"
+          else
+            RANGE="$PREV..HEAD"
+            HEADER="Changes since $PREV"
+          fi
+
+          BODY=$(git log "$RANGE" --pretty=format:"- %s (%h)" --no-merges -- kc-themes)
+
+          {
+            echo "body<<EOF"
+            echo "## $HEADER"
+            echo ""
+            echo "$BODY"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create and push tag
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: ${{ env.TAG }}
+          body: ${{ steps.changelog.outputs.body }}
+          files: keycloak-theme.jar
+          draft: false
+          prerelease: false
