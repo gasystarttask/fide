@@ -16,8 +16,8 @@ export function SignInGate() {
   const uiText = COPY[locale];
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background text-main">
-      <p className="text-b3 text-medium-gray">{uiText.signInPrompt}</p>
+    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-3 py-6 text-main sm:px-6">
+      <p className="max-w-sm text-center text-b3 text-medium-gray">{uiText.signInPrompt}</p>
       <form action={signInAction}>
         <Button type="submit" variant="primary" size="md">
           {uiText.signIn}
