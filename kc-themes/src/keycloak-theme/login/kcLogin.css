@@ -121,3 +121,62 @@ a {
   border-color: var(--success);
   color: var(--success);
 }
+
+/*
+ * Social login (Google/Facebook/etc, once configured as Identity Providers
+ * in Keycloak — see kc-themes/README.md). Real classes confirmed from the
+ * base theme's login.css and keycloakify's Login.js: #kc-social-providers >
+ * hr + h2 + ul.kc-social-links > li > a.kc-social-item. All base-theme rules
+ * here are single-class selectors, so the two-class selectors below win
+ * without needing !important.
+ */
+#kc-social-providers hr {
+  border-color: var(--border);
+  margin: 24px 0 16px;
+}
+
+#kc-social-providers h2 {
+  color: var(--text-medium-gray);
+  font-weight: 500;
+  text-align: center;
+}
+
+.kc-social-links {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pf-c-button.kc-social-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text-main);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.pf-c-button.kc-social-item:hover {
+  background: var(--border);
+  border-color: var(--accent);
+}
+
+.pf-c-button.kc-social-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.kc-social-provider-logo {
+  float: none;
+  color: var(--text-main);
+}
+
+.kc-social-provider-name {
+  color: var(--text-main);
+}
