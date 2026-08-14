@@ -16,6 +16,43 @@ spec:
       labels:
         app: keycloak
     spec:
+      # Pulls the latest released kc-themes login theme jar (see
+      # .github/workflows/kc-theme-release.yml and kc-themes/README.md) into
+      # a volume shared with the main container, rather than baking a custom
+      # Keycloak image — consistent with this repo's "reference the official
+      # image directly" approach for Meilisearch/Keycloak. Since the main
+      # container runs `start` (non-optimized), Keycloak rebuilds providers
+      # from /opt/keycloak/providers on every boot and picks up whatever jar
+      # this initContainer just downloaded — including on the nightly
+      # stop/start pod recreation, so the theme stays current automatically.
+      initContainers:
+      - name: pull-theme
+        image: curlimages/curl:8.12.1
+        command:
+        - sh
+        - -c
+        # Pulls the fixed "kc-theme-latest" tag, NOT GitHub's generic
+        # /releases/latest/ — that's repo-wide and would get hijacked by
+        # this repo's unrelated app release.yml (tag v<version>) the next
+        # time an app release is cut after a theme release, silently 404ing
+        # this fetch forever after. --remove-on-error avoids leaving a
+        # truncated jar behind on a failed transfer; --connect-timeout/
+        # --max-time bound how long a stalled connection can block this
+        # initContainer (and therefore the whole pod) from starting.
+        # Tolerates no release existing yet (e.g. before kc-theme-release.yml
+        # has ever run), or any other fetch failure — the main container must
+        # still start with Keycloak's default look rather than being blocked
+        # by a failed initContainer.
+        - |
+          URL=https://github.com/gasystarttask/fide/releases/download/kc-theme-latest/keycloak-theme.jar
+          if curl -fsSL --remove-on-error --connect-timeout 10 --max-time 60 "$URL" -o /providers/theme.jar; then
+            echo "Fetched custom Keycloak theme from $URL"
+          else
+            echo "Could not fetch custom Keycloak theme from $URL (no release published yet, or a fetch error) — starting with the default Keycloak theme."
+          fi
+        volumeMounts:
+        - name: keycloak-providers
+          mountPath: /providers
       containers:
       - name: keycloak
         image: quay.io/keycloak/keycloak:26.7
@@ -70,6 +107,9 @@ spec:
           name: http
         - containerPort: 9000
           name: http-mgmt
+        volumeMounts:
+        - name: keycloak-providers
+          mountPath: /opt/keycloak/providers
         readinessProbe:
           httpGet:
             path: /health/ready
@@ -90,6 +130,9 @@ spec:
           limits:
             cpu: 500m
             memory: 1Gi
+      volumes:
+      - name: keycloak-providers
+        emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
