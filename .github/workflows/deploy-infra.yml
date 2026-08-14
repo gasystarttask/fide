@@ -159,6 +159,8 @@ jobs:
             --from-literal=OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
             --from-literal=GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
             --from-literal=GITHUB_TOKEN="${{ secrets.APP_GITHUB_TOKEN }}" \
+            --from-literal=AUTH_SECRET="${{ secrets.AUTH_SECRET }}" \
+            --from-literal=KEYCLOAK_CLIENT_SECRET="${{ secrets.KEYCLOAK_CLIENT_SECRET }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy search-engine

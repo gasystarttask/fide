@@ -32,6 +32,8 @@ Actions → Secrets — these genuinely are sensitive, unlike the `AKS_*`/
 | `APP_GITHUB_TOKEN` | `search-engine-secret`'s `GITHUB_TOKEN` (named `APP_*` to avoid colliding with the `GITHUB_TOKEN` GitHub injects automatically into every workflow run) |
 | `KEYCLOAK_DB_PASSWORD` | `keycloak-db-secret` — pick a fresh value, e.g. `openssl rand -hex 32` |
 | `KEYCLOAK_ADMIN_PASSWORD` | `keycloak-secret`'s bootstrap admin password — strong, unique value |
+| `AUTH_SECRET` | `search-engine-secret` — next-auth's session-signing secret, e.g. `openssl rand -base64 32` |
+| `KEYCLOAK_CLIENT_SECRET` | `search-engine-secret` — the `search-engine` OIDC client's secret, from Keycloak's Admin Console once the realm/client exist |
 
 Since the workflow re-applies these secrets from CI on every run, they
 become the source of truth going forward — changing a value here and

@@ -66,6 +66,9 @@ export type UIText = {
   sourcesToggle: string;
   closeSidebar: string;
   dismissNotification: string;
+  signInPrompt: string;
+  signIn: string;
+  signOut: string;
   citationLabel: string;
   referenceLabel: string;
   versionLabel: string;
