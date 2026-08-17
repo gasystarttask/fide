@@ -1,24 +1,47 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "./ui/Button";
-import type { Locale } from "../types/ui";
-import { COPY, resolveLocale } from "../services/localization";
+import { COPY } from "../services/localization";
+import { useLocale } from "../hooks/useLocale";
 import {
   persistCookieConsent,
   resolveCookieConsent,
   type CookieConsentStatus,
 } from "../services/cookieConsent";
 
+const BANNER_HEIGHT_CSS_VAR = "--cookie-banner-height";
+
 export function CookieConsentBanner() {
-  const [locale, setLocale] = useState<Locale>("en");
+  const locale = useLocale();
   const [visible, setVisible] = useState(false);
+  const bannerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    setLocale(resolveLocale());
     setVisible(resolveCookieConsent() === null);
   }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const el = bannerRef.current;
+
+    if (!visible || !el) {
+      root.style.setProperty(BANNER_HEIGHT_CSS_VAR, "0px");
+      return;
+    }
+
+    const updateHeight = () => root.style.setProperty(BANNER_HEIGHT_CSS_VAR, `${el.offsetHeight}px`);
+    updateHeight();
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(el);
+
+    return () => {
+      observer.disconnect();
+      root.style.setProperty(BANNER_HEIGHT_CSS_VAR, "0px");
+    };
+  }, [visible]);
 
   if (!visible) {
     return null;
@@ -33,6 +56,7 @@ export function CookieConsentBanner() {
 
   return (
     <div
+      ref={bannerRef}
       role="region"
       aria-label={uiText.cookieBannerTitle}
       className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-surface px-3 py-4 shadow-lg sm:px-6"

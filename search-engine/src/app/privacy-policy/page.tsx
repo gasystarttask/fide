@@ -1,21 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { Locale } from "../types/ui";
-import { COPY, resolveLocale } from "../services/localization";
+import { COPY } from "../services/localization";
+import { useLocale } from "../hooks/useLocale";
 
 export default function PrivacyPolicyPage() {
-  const [locale, setLocale] = useState<Locale>("en");
-
-  useEffect(() => {
-    setLocale(resolveLocale());
-  }, []);
-
+  const locale = useLocale();
   const uiText = COPY[locale];
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 bg-background px-3 py-10 text-main sm:px-6">
+    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 bg-background px-3 pt-10 pb-[calc(2.5rem+var(--cookie-banner-height))] text-main sm:px-6">
       <div>
         <Link href="/" className="text-b4 text-primary underline hover:text-primary-hover">
           {uiText.backToApp}

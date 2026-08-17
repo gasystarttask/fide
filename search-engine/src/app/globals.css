@@ -77,6 +77,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
+:root {
+  --cookie-banner-height: 0px;
+}
+
 body {
   background: var(--background);
   color: var(--text-main);
