@@ -1,6 +1,14 @@
 import NextAuth from "next-auth";
 import Keycloak from "next-auth/providers/keycloak";
 
+declare module "next-auth" {
+  interface Session {
+    idToken?: string;
+  }
+}
+
+type TokenWithIdToken = { idToken?: string };
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Keycloak({
@@ -12,4 +20,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   // Stateless — no session persistence needed, we only use Keycloak to
   // establish this app's own session cookie.
   session: { strategy: "jwt" },
+  callbacks: {
+    // Keep Keycloak's id_token around (JWT sessions don't retain it by
+    // default) so sign-out can end the Keycloak SSO session too, via
+    // id_token_hint — see buildKeycloakEndSessionUrl in keycloak-logout.ts.
+    async jwt({ token, account }) {
+      if (account?.id_token) {
+        (token as TokenWithIdToken).idToken = account.id_token;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      const idToken = (token as TokenWithIdToken).idToken;
+      if (idToken) {
+        session.idToken = idToken;
+      }
+      return session;
+    },
+  },
 });
