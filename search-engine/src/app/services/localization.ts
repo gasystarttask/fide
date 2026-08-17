@@ -61,6 +61,28 @@ export const COPY: Record<Locale, UIText> = {
       fallback: (source: string, target: string, relation: string) =>
         `${source} is related to ${target} (${relation}).`,
     },
+    cookieBannerTitle: "Cookies",
+    cookieBannerMessage:
+      "We use only the essential cookies needed to keep you signed in. We don't use analytics or advertising cookies.",
+    cookieAcceptAll: "Accept all",
+    cookieRejectNonEssential: "Reject non-essential",
+    privacyPolicyLink: "Privacy Policy",
+    privacyPolicyPageTitle: "Privacy Policy",
+    privacyPolicyIntro:
+      "This policy explains what data Bible Chat Scholar collects and how cookies are used.",
+    privacyPolicyDataTitle: "Data we collect",
+    privacyPolicyDataBody:
+      "When you sign in, our identity provider (Keycloak) shares your account details (such as your name and email) with this app so we can authenticate you and apply per-user rate limits. We don't sell or share this data with third parties.",
+    privacyPolicyCookiesTitle: "Cookies we use",
+    privacyPolicyCookiesBody:
+      "We set one essential session cookie to keep you signed in. This cookie is required for the app to work and isn't subject to consent under the ePrivacy rules. We currently don't use analytics, advertising, or other non-essential cookies. Your locale and cookie-consent choice are stored in your browser's local storage, not in cookies.",
+    privacyPolicyRightsTitle: "Your rights",
+    privacyPolicyRightsBody:
+      "Under GDPR, you can request access to, correction of, or deletion of your data. Contact the project maintainers to exercise these rights.",
+    privacyPolicyContactTitle: "Contact",
+    privacyPolicyContactBody:
+      "For any question about this policy, reach out to the project maintainers via the GitHub repository.",
+    backToApp: "Back to app",
   },
   fr: {
     defaultDraft: "Qui est Jesus ?",
@@ -120,6 +142,28 @@ export const COPY: Record<Locale, UIText> = {
       fallback: (source: string, target: string, relation: string) =>
         `${source} est lie a ${target} (${relation}).`,
     },
+    cookieBannerTitle: "Cookies",
+    cookieBannerMessage:
+      "Nous utilisons uniquement les cookies essentiels necessaires pour vous garder connecte. Nous n'utilisons pas de cookies d'analyse ni de publicite.",
+    cookieAcceptAll: "Tout accepter",
+    cookieRejectNonEssential: "Refuser les cookies non essentiels",
+    privacyPolicyLink: "Politique de confidentialite",
+    privacyPolicyPageTitle: "Politique de confidentialite",
+    privacyPolicyIntro:
+      "Cette politique explique quelles donnees Assistant biblique collecte et comment les cookies sont utilises.",
+    privacyPolicyDataTitle: "Donnees collectees",
+    privacyPolicyDataBody:
+      "Lors de la connexion, notre fournisseur d'identite (Keycloak) partage vos informations de compte (comme votre nom et votre email) avec cette application afin de vous authentifier et d'appliquer des limites de debit par utilisateur. Nous ne vendons ni ne partageons ces donnees avec des tiers.",
+    privacyPolicyCookiesTitle: "Cookies utilises",
+    privacyPolicyCookiesBody:
+      "Nous deposons un unique cookie de session essentiel pour vous garder connecte. Ce cookie est necessaire au fonctionnement de l'application et n'est pas soumis au consentement au titre de la reglementation ePrivacy. Nous n'utilisons actuellement aucun cookie d'analyse, de publicite ou autre cookie non essentiel. Votre langue et votre choix de consentement aux cookies sont stockes dans le stockage local de votre navigateur, et non dans des cookies.",
+    privacyPolicyRightsTitle: "Vos droits",
+    privacyPolicyRightsBody:
+      "Conformement au RGPD, vous pouvez demander l'acces, la correction ou la suppression de vos donnees. Contactez les mainteneurs du projet pour exercer ces droits.",
+    privacyPolicyContactTitle: "Contact",
+    privacyPolicyContactBody:
+      "Pour toute question sur cette politique, contactez les mainteneurs du projet via le depot GitHub.",
+    backToApp: "Retour a l'application",
   },
 };
 

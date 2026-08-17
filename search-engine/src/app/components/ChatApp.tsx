@@ -7,12 +7,14 @@ import { DefaultChatTransport } from "ai";
 import { ChatMessageList } from "./chat/ChatMessageList";
 import { ChatComposer } from "./chat/ChatComposer";
 import { SourceSidebar } from "./sidebar/SourceSidebar";
+import { Footer } from "./Footer";
 import { Button } from "./ui/Button";
 import { SourcesIcon } from "./ui/icons";
 import { ToastStack, type ToastItem } from "./ui/ToastStack";
 import { signOutAction } from "../actions/auth-actions";
-import type { EntityFact, HybridSearchResponse, Locale, VersePreview } from "../types/ui";
-import { COPY, LOCALE_STORAGE_KEY, resolveLocale } from "../services/localization";
+import type { EntityFact, HybridSearchResponse, VersePreview } from "../types/ui";
+import { COPY } from "../services/localization";
+import { useLocale } from "../hooks/useLocale";
 import { parseRetryAfterSeconds, extractRetryAfterFromMessage } from "../services/rateLimitParser";
 import { getMessageText, renderMessageWithCitations } from "../services/messageFormatting";
 import { buildRelationSnippets } from "../services/relationSnippets";
@@ -22,7 +24,7 @@ const NEAR_BOTTOM_THRESHOLD_PX = 120;
 const TOAST_DURATION_MS = 6000;
 
 export function ChatApp() {
-  const [locale, setLocale] = useState<Locale>("en");
+  const locale = useLocale();
   const [draft, setDraft] = useState(COPY.en.defaultDraft);
   const [selectedCitation, setSelectedCitation] = useState<string | null>(null);
   const [preview, setPreview] = useState<VersePreview | null>(null);
@@ -113,22 +115,6 @@ export function ChatApp() {
 
     el.scrollTop = el.scrollHeight;
   }, [messages.length, lastMessageText, status]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    setLocale(resolveLocale());
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
-  }, [locale]);
 
   useEffect(() => {
     setDraft((current) => {
@@ -255,11 +241,11 @@ export function ChatApp() {
   }
 
   return (
-    <main className="min-h-screen bg-background px-3 py-6 text-main sm:px-6">
+    <main className="flex h-[calc(100vh-var(--cookie-banner-height))] flex-col bg-background px-3 py-6 text-main sm:px-6">
       <ToastStack toasts={toasts} onDismiss={dismissToast} dismissLabel={uiText.dismissNotification} />
 
-      <div className="mx-auto grid w-full max-w-6xl items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="flex h-[calc(100vh-3rem)] min-h-135 flex-col overflow-hidden rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+      <div className="mx-auto grid w-full max-w-6xl flex-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px] min-h-0">
+        <section className="flex h-full min-h-135 flex-col self-stretch overflow-hidden rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
           <header className="mb-4 flex flex-wrap items-start justify-between gap-2 border-b border-border pb-3">
             <div>
               <h1 className="text-h3 font-semibold tracking-tight text-main">{uiText.title}</h1>
@@ -345,6 +331,8 @@ export function ChatApp() {
           />
         </div>
       </div>
+
+      <Footer uiText={uiText} />
     </main>
   );
 }

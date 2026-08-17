@@ -95,6 +95,22 @@ export type UIText = {
   graphLoadError: string;
   verseLoadError: string;
   defaultDraft: string;
+  cookieBannerTitle: string;
+  cookieBannerMessage: string;
+  cookieAcceptAll: string;
+  cookieRejectNonEssential: string;
+  privacyPolicyLink: string;
+  privacyPolicyPageTitle: string;
+  privacyPolicyIntro: string;
+  privacyPolicyDataTitle: string;
+  privacyPolicyDataBody: string;
+  privacyPolicyCookiesTitle: string;
+  privacyPolicyCookiesBody: string;
+  privacyPolicyRightsTitle: string;
+  privacyPolicyRightsBody: string;
+  privacyPolicyContactTitle: string;
+  privacyPolicyContactBody: string;
+  backToApp: string;
 };
 
 export type RenderMessageWithCitations = (
