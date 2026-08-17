@@ -21,6 +21,6 @@ describe("PrivacyPolicyPage", () => {
 
     render(<PrivacyPolicyPage />);
 
-    expect(screen.getByRole("heading", { name: "Politique de confidentialite" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Politique de confidentialité" })).toBeInTheDocument();
   });
 });
