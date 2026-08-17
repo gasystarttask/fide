@@ -16,6 +16,6 @@ describe("Footer", () => {
   it("uses localized link text", () => {
     render(<Footer uiText={COPY.fr} />);
 
-    expect(screen.getByRole("link", { name: "Politique de confidentialite" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Politique de confidentialité" })).toBeInTheDocument();
   });
 });

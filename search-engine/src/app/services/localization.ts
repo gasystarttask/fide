@@ -144,26 +144,26 @@ export const COPY: Record<Locale, UIText> = {
     },
     cookieBannerTitle: "Cookies",
     cookieBannerMessage:
-      "Nous utilisons uniquement les cookies essentiels necessaires pour vous garder connecte. Nous n'utilisons pas de cookies d'analyse ni de publicite.",
+      "Nous utilisons uniquement les cookies essentiels nécessaires pour vous garder connecté. Nous n'utilisons pas de cookies d'analyse ni de publicité.",
     cookieAcceptAll: "Tout accepter",
     cookieRejectNonEssential: "Refuser les cookies non essentiels",
-    privacyPolicyLink: "Politique de confidentialite",
-    privacyPolicyPageTitle: "Politique de confidentialite",
+    privacyPolicyLink: "Politique de confidentialité",
+    privacyPolicyPageTitle: "Politique de confidentialité",
     privacyPolicyIntro:
-      "Cette politique explique quelles donnees Assistant biblique collecte et comment les cookies sont utilises.",
-    privacyPolicyDataTitle: "Donnees collectees",
+      "Cette politique explique quelles données Assistant biblique collecte et comment les cookies sont utilisés.",
+    privacyPolicyDataTitle: "Données collectées",
     privacyPolicyDataBody:
-      "Lors de la connexion, notre fournisseur d'identite (Keycloak) partage vos informations de compte (comme votre nom et votre email) avec cette application afin de vous authentifier et d'appliquer des limites de debit par utilisateur. Nous ne vendons ni ne partageons ces donnees avec des tiers.",
-    privacyPolicyCookiesTitle: "Cookies utilises",
+      "Lors de la connexion, notre fournisseur d'identité (Keycloak) partage vos informations de compte (comme votre nom et votre email) avec cette application afin de vous authentifier et d'appliquer des limites de débit par utilisateur. Nous ne vendons ni ne partageons ces données avec des tiers.",
+    privacyPolicyCookiesTitle: "Cookies utilisés",
     privacyPolicyCookiesBody:
-      "Nous deposons un unique cookie de session essentiel pour vous garder connecte. Ce cookie est necessaire au fonctionnement de l'application et n'est pas soumis au consentement au titre de la reglementation ePrivacy. Nous n'utilisons actuellement aucun cookie d'analyse, de publicite ou autre cookie non essentiel. Votre langue et votre choix de consentement aux cookies sont stockes dans le stockage local de votre navigateur, et non dans des cookies.",
+      "Nous déposons un unique cookie de session essentiel pour vous garder connecté. Ce cookie est nécessaire au fonctionnement de l'application et n'est pas soumis au consentement au titre de la réglementation ePrivacy. Nous n'utilisons actuellement aucun cookie d'analyse, de publicité ou autre cookie non essentiel. Votre langue et votre choix de consentement aux cookies sont stockés dans le stockage local de votre navigateur, et non dans des cookies.",
     privacyPolicyRightsTitle: "Vos droits",
     privacyPolicyRightsBody:
-      "Conformement au RGPD, vous pouvez demander l'acces, la correction ou la suppression de vos donnees. Contactez les mainteneurs du projet pour exercer ces droits.",
+      "Conformément au RGPD, vous pouvez demander l'accès, la correction ou la suppression de vos données. Contactez les mainteneurs du projet pour exercer ces droits.",
     privacyPolicyContactTitle: "Contact",
     privacyPolicyContactBody:
-      "Pour toute question sur cette politique, contactez les mainteneurs du projet via le depot GitHub.",
-    backToApp: "Retour a l'application",
+      "Pour toute question sur cette politique, contactez les mainteneurs du projet via le dépôt GitHub.",
+    backToApp: "Retour à l'application",
   },
 };
 
