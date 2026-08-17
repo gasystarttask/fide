@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { signInAction } from "../actions/auth-actions";
 import { Button } from "./ui/Button";
+import { Footer } from "./Footer";
 import type { Locale } from "../types/ui";
 import { COPY, resolveLocale } from "../services/localization";
 
@@ -23,6 +24,7 @@ export function SignInGate() {
           {uiText.signIn}
         </Button>
       </form>
+      <Footer uiText={uiText} />
     </main>
   );
 }
