@@ -7,7 +7,11 @@ declare module "next-auth" {
   }
 }
 
-type TokenWithIdToken = { idToken?: string };
+declare module "@auth/core/jwt" {
+  interface JWT {
+    idToken?: string;
+  }
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -26,14 +30,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // id_token_hint — see buildKeycloakEndSessionUrl in keycloak-logout.ts.
     async jwt({ token, account }) {
       if (account?.id_token) {
-        (token as TokenWithIdToken).idToken = account.id_token;
+        token.idToken = account.id_token;
       }
       return token;
     },
     async session({ session, token }) {
-      const idToken = (token as TokenWithIdToken).idToken;
-      if (idToken) {
-        session.idToken = idToken;
+      if (token.idToken) {
+        session.idToken = token.idToken;
       }
       return session;
     },
