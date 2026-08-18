@@ -31,7 +31,7 @@ export function SourceSidebar({
   onClose,
 }: SourceSidebarProps) {
   return (
-    <aside className="h-full overflow-y-auto rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-5 lg:h-auto lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)]">
+    <aside className="scrollbar-styled h-full overflow-y-auto rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-5 lg:h-auto lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)]">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-b4 font-semibold uppercase tracking-wide text-medium-gray">{uiText.sourcePreviewTitle}</h2>
         <Button
@@ -82,7 +82,7 @@ export function SourceSidebar({
 
       <div className="mt-4 border-t border-border pt-4">
         <h3 className="text-b4 font-semibold uppercase tracking-wide text-medium-gray">{uiText.graphTitle}</h3>
-        <div className="mt-3 lg:max-h-[42vh] lg:overflow-y-auto lg:pr-1">
+        <div className="scrollbar-styled mt-3 lg:max-h-[42vh] lg:overflow-y-auto lg:pr-1">
           {graphLoading ? (
             <div className="rounded-xl border border-primary/25 bg-surface-alt p-3">
               <div className="h-3 w-24 animate-pulse rounded bg-primary/20" />
