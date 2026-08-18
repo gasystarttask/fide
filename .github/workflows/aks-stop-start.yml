@@ -4,9 +4,9 @@ on:
   schedule:
     # Stop nightly (all week) at 19:00 UTC.
     - cron: '0 19 * * *'
-    # Start weekdays (Mon-Fri) at 17:00 UTC. Cluster stays stopped
+    # Start weekdays (Mon-Fri) at 06:00 UTC. Cluster stays stopped
     # over the weekend since no start job runs on Sat/Sun.
-    - cron: '0 17 * * 1-5'
+    - cron: '0 6 * * 1-5'
   workflow_dispatch:
     inputs:
       action:
@@ -50,7 +50,7 @@ jobs:
             --name "${{ vars.AKS_CLUSTER_NAME }}"
 
   start:
-    if: github.event.schedule == '0 17 * * 1-5' || (github.event_name == 'workflow_dispatch' && inputs.action == 'start')
+    if: github.event.schedule == '0 6 * * 1-5' || (github.event_name == 'workflow_dispatch' && inputs.action == 'start')
     runs-on: ubuntu-latest
     steps:
       - name: Azure login (OIDC)
