@@ -56,7 +56,7 @@ export function ChatComposer({
           onKeyDown={handleKeyDown}
           placeholder={uiText.inputPlaceholder}
           rows={1}
-          className="max-h-32 flex-1 resize-none bg-transparent text-b3 text-main outline-none placeholder:text-dark-gray"
+          className="scrollbar-styled max-h-32 flex-1 resize-none bg-transparent text-b3 text-main outline-none placeholder:text-dark-gray"
         />
       </div>
 

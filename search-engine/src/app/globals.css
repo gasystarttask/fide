@@ -86,3 +86,22 @@ body {
   color: var(--text-main);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+/* Thin, rounded scrollbar matching the app's design tokens, for scrollable
+ * panels (source sidebar, chat history, composer) instead of the browser
+ * default. */
+@layer components {
+  .scrollbar-styled::-webkit-scrollbar {
+    width: 0.5rem;
+  }
+
+  .scrollbar-styled::-webkit-scrollbar-track {
+    border-radius: 9999px;
+    background: var(--surface-alt);
+  }
+
+  .scrollbar-styled::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: var(--border-strong);
+  }
+}

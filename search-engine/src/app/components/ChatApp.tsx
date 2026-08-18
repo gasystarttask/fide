@@ -272,7 +272,7 @@ export function ChatApp() {
           <div
             ref={scrollContainerRef}
             onScroll={handleScrollContainerScroll}
-            className="flex-1 overflow-y-auto pr-1"
+            className="scrollbar-styled flex-1 overflow-y-auto pr-1"
           >
             <ChatMessageList
               cooldownSeconds={cooldownSeconds}
