@@ -7,7 +7,6 @@ import { DefaultChatTransport } from "ai";
 import { ChatMessageList } from "./chat/ChatMessageList";
 import { ChatComposer } from "./chat/ChatComposer";
 import { SourceSidebar } from "./sidebar/SourceSidebar";
-import { Footer } from "./Footer";
 import { Button } from "./ui/Button";
 import { SourcesIcon } from "./ui/icons";
 import { ToastStack, type ToastItem } from "./ui/ToastStack";
@@ -331,8 +330,6 @@ export function ChatApp() {
           />
         </div>
       </div>
-
-      <Footer uiText={uiText} />
     </main>
   );
 }

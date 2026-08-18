@@ -2,7 +2,6 @@
 
 import { signInAction } from "../actions/auth-actions";
 import { Button } from "./ui/Button";
-import { Footer } from "./Footer";
 import { COPY } from "../services/localization";
 import { useLocale } from "../hooks/useLocale";
 
@@ -18,7 +17,6 @@ export function SignInGate() {
           {uiText.signIn}
         </Button>
       </form>
-      <Footer uiText={uiText} />
     </main>
   );
 }
