@@ -78,7 +78,7 @@ textarea.form-control:focus {
  * rounded background/border and let it clip its transparent children.
  */
 .pf-c-input-group {
-  background: var(--surface-alt);
+  --pf-c-input-group--BackgroundColor: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: 10px;
   overflow: hidden;
@@ -102,9 +102,17 @@ textarea.form-control:focus {
 .pf-c-input-group .pf-c-button.pf-m-control {
   background: transparent;
   border: none;
-  border-radius: 0;
+  border-radius: 0 10px 10px 0;
+  --pf-c-button--after--BorderColor: unset;
   color: var(--text-medium-gray);
   padding: 0 12px;
+}
+
+.pf-c-input-group input:not([type="checkbox"]):not([type="radio"]),
+.pf-c-input-group textarea {
+  flex: 2;
+  min-width: 0;
+  border-radius: 10px 0 0 10px;
 }
 
 .pf-c-input-group .pf-c-button.pf-m-control:hover {
