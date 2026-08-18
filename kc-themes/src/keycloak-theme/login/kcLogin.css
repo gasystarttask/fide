@@ -70,6 +70,52 @@ textarea.form-control:focus {
   box-shadow: 0 0 0 2px rgba(116, 104, 252, 0.35);
 }
 
+/*
+ * Password field wrapper (kcInputGroup -> pf-c-input-group): the input and
+ * the show/hide button use PatternFly's flush "control" button style, which
+ * has no background box, leaving the group without the rounded look used
+ * by every other input/button on the login form. Give the group itself the
+ * rounded background/border and let it clip its transparent children.
+ */
+.pf-c-input-group {
+  background: var(--surface-alt);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.pf-c-input-group:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(116, 104, 252, 0.35);
+}
+
+.pf-c-input-group .pf-c-form-control {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+.pf-c-input-group .pf-c-form-control:focus {
+  box-shadow: none;
+}
+
+.pf-c-input-group .pf-c-button.pf-m-control {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--text-medium-gray);
+  padding: 0 12px;
+}
+
+.pf-c-input-group .pf-c-button.pf-m-control:hover {
+  color: var(--text-main);
+}
+
+.pf-c-input-group .pf-c-button.pf-m-control:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 /* Pill-shaped primary button, matching search-engine's shared Button
  * component (src/app/components/ui/Button.tsx: variant="primary"). */
 .pf-c-button.pf-m-primary {
