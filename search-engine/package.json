@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.36",
-    "@ai-sdk/react": "^3.0.187",
+    "@ai-sdk/react": "^4.0.69",
     "@langchain/core": "^1.1.39",
     "@langchain/openai": "^1.4.6",
     "ai": "^6.0.175",
