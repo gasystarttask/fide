@@ -22,10 +22,10 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.46",
-    "@ai-sdk/react": "^4.0.69",
+    "@ai-sdk/react": "^4.0.82",
     "@langchain/core": "^1.1.39",
     "@langchain/openai": "^1.4.6",
-    "ai": "^6.0.175",
+    "ai": "^7.0.79",
     "framer-motion": "^13.0.0",
     "meilisearch": "^0.60.0",
     "mongodb": "^7.1.1",
