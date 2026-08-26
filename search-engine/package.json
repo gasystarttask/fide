@@ -21,7 +21,7 @@
     "test:run": "vitest run"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.36",
+    "@ai-sdk/openai": "^4.0.46",
     "@ai-sdk/react": "^4.0.69",
     "@langchain/core": "^1.1.39",
     "@langchain/openai": "^1.4.6",
