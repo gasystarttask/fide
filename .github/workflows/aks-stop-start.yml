@@ -1,12 +1,12 @@
 name: AKS Stop/Start
 
 on:
-  schedule:
-    # Stop nightly (all week) at 19:00 UTC.
-    - cron: '0 19 * * *'
-    # Start weekdays (Mon-Fri) at 06:00 UTC. Cluster stays stopped
-    # over the weekend since no start job runs on Sat/Sun.
-    - cron: '0 6 * * 1-5'
+  # schedule:
+  #   # Stop nightly (all week) at 19:00 UTC.
+  #   - cron: '0 19 * * *'
+  #   # Start weekdays (Mon-Fri) at 06:00 UTC. Cluster stays stopped
+  #   # over the weekend since no start job runs on Sat/Sun.
+  #   - cron: '0 6 * * 1-5'
   workflow_dispatch:
     inputs:
       action:
