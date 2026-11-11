@@ -203,7 +203,7 @@ browsers must reach it directly during login.
    against an empty admin table, and re-running this workflow after that has
    no effect.
 5. Create the realm and OIDC client that `search-engine` will authenticate
-   against (realm e.g. `bible-sg`, confidential client, redirect URIs for
+   against (realm e.g. `bible-sg` — the live realm keeps its historical name; new setups may use `fide`, confidential client, redirect URIs for
    `https://fide.rrahajason.space/*` and, for local development,
    `http://localhost:3000/*`).
 6. Once a `kc-theme-v*` release exists (see `../../kc-themes/README.md`), set

@@ -1,10 +1,10 @@
-# Bible Chat Scholar
+# Fide
 
-[![Release](https://img.shields.io/github/v/release/gasystarttask/bible-sg?display_name=tag)](https://github.com/gasystarttask/bible-sg/releases)
-[![Security](https://img.shields.io/github/issues-search/gasystarttask/bible-sg?query=is%3Aopen+label%3Asecurity&label=security%20issues)](https://github.com/gasystarttask/bible-sg/issues?q=is%3Aopen+label%3Asecurity)
-[![Code Quality](https://img.shields.io/github/actions/workflow/status/gasystarttask/bible-sg/search-engine-openapi.yml?label=code%20quality)](https://github.com/gasystarttask/bible-sg/actions/workflows/search-engine-openapi.yml)
+[![Release](https://img.shields.io/github/v/release/gasystarttask/fide?display_name=tag)](https://github.com/gasystarttask/fide/releases)
+[![Security](https://img.shields.io/github/issues-search/gasystarttask/fide?query=is%3Aopen+label%3Asecurity&label=security%20issues)](https://github.com/gasystarttask/fide/issues?q=is%3Aopen+label%3Asecurity)
+[![Code Quality](https://img.shields.io/github/actions/workflow/status/gasystarttask/fide/search-engine-openapi.yml?label=code%20quality)](https://github.com/gasystarttask/fide/actions/workflows/search-engine-openapi.yml)
 
-Bible Chat Scholar is a ~~proof-of-concept~~ Bible AI engine using semantic search (vector embeddings) and a roadmap toward RAG + knowledge graph capabilities.
+Fide is a ~~proof-of-concept~~ Bible AI engine using semantic search (vector embeddings) and a roadmap toward RAG + knowledge graph capabilities.
 
 ## What it includes
 
@@ -15,7 +15,7 @@ Bible Chat Scholar is a ~~proof-of-concept~~ Bible AI engine using semantic sear
 
 ## Architecture diagram
 
-![Bible Chat Scholar Architecture](./docs/images/architecture-en.png)
+![Fide Architecture](./docs/images/architecture-en.png)
 
 ## Tech stack
 
