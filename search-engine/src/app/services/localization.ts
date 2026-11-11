@@ -5,7 +5,7 @@ export const LOCALE_STORAGE_KEY = "fide.ui.locale";
 export const COPY: Record<Locale, UIText> = {
   en: {
     defaultDraft: "Who is Jesus?",
-    title: "Bible Chat Scholar",
+    title: "Fide",
     subtitle: "Streaming response with interactive Bible citations.",
     roleAssistant: "Assistant",
     roleUser: "You",
@@ -69,7 +69,7 @@ export const COPY: Record<Locale, UIText> = {
     privacyPolicyLink: "Privacy Policy",
     privacyPolicyPageTitle: "Privacy Policy",
     privacyPolicyIntro:
-      "This policy explains what data Bible Chat Scholar collects and how cookies are used.",
+      "This policy explains what data Fide collects and how cookies are used.",
     privacyPolicyDataTitle: "Data we collect",
     privacyPolicyDataBody:
       "When you sign in, our identity provider (Keycloak) shares your account details (such as your name and email) with this app so we can authenticate you and apply per-user rate limits. We don't sell or share this data with third parties.",
